@@ -6,6 +6,26 @@
       
       <form @submit.prevent="handleRegister">
         <div class="form-group">
+          <label for="avatar">头像</label>
+          <div class="avatar-upload">
+            <div v-if="avatarPreview" class="avatar-preview" :style="{ backgroundImage: `url(${avatarPreview})` }"></div>
+            <div v-else class="avatar-placeholder">
+              <span>?</span>
+            </div>
+            <label for="avatar-input" class="upload-btn">
+              选择图片
+              <input 
+                type="file" 
+                id="avatar-input" 
+                accept="image/*" 
+                @change="handleAvatarChange"
+                style="display: none;"
+              />
+            </label>
+          </div>
+        </div>
+        
+        <div class="form-group">
           <label for="username">用户名</label>
           <input 
             type="text" 
@@ -67,9 +87,64 @@ const formData = reactive({
   password: ''
 })
 
+const avatarFile = ref(null)
+const avatarPreview = ref(null)
 const loading = ref(false)
 const error = ref('')
 const success = ref('')
+
+const handleAvatarChange = (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  // 验证文件类型
+  if (!file.type.startsWith('image/')) {
+    error.value = '请选择图片文件'
+    return
+  }
+  
+  // 验证文件大小（最大 5MB）
+  if (file.size > 5 * 1024 * 1024) {
+    error.value = '图片大小不能超过 5MB'
+    return
+  }
+  
+  avatarFile.value = file
+  error.value = ''
+  
+  // 创建预览 URL
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    avatarPreview.value = e.target.result
+  }
+  reader.readAsDataURL(file)
+}
+
+const uploadAvatarToCloud = async () => {
+  if (!avatarFile.value) return null
+  
+  // 这里使用一个示例的图床服务，实际项目中应替换为自己的图片上传服务
+  // 可以使用阿里云 OSS、腾讯云 COS、AWS S3 等
+  const formDataUpload = new FormData()
+  formDataUpload.append('file', avatarFile.value)
+  
+  try {
+    // 使用 sm.ms 免费图床作为示例（生产环境请替换为自己的图片存储服务）
+    const response = await fetch('https://sm.ms/api/v2/upload', {
+      method: 'POST',
+      body: formDataUpload
+    })
+    const result = await response.json()
+    
+    if (result.success && result.data) {
+      return result.data.url
+    }
+    return null
+  } catch (err) {
+    console.error('上传头像失败:', err)
+    return null
+  }
+}
 
 const handleRegister = async () => {
   loading.value = true
@@ -77,7 +152,18 @@ const handleRegister = async () => {
   success.value = ''
   
   try {
-    await authAPI.register(formData.username, formData.email, formData.password)
+    let avatarUrl = null
+    
+    // 如果选择了头像，先上传头像
+    if (avatarFile.value) {
+      avatarUrl = await uploadAvatarToCloud()
+      if (!avatarUrl) {
+        // 头像上传失败，但仍然允许注册（头像是可选的）
+        console.warn('头像上传失败，将使用默认头像')
+      }
+    }
+    
+    await authAPI.register(formData.username, formData.email, formData.password, avatarUrl)
     
     success.value = '注册成功！即将跳转到登录页面...'
     
@@ -127,6 +213,47 @@ h1 {
 
 .form-group {
   margin-bottom: 20px;
+}
+
+/* 头像上传样式 */
+.avatar-upload {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.avatar-preview,
+.avatar-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  background-color: #f0f0f0;
+  border: 2px solid #667eea;
+}
+
+.avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  color: #999;
+}
+
+.upload-btn {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+
+.upload-btn:hover {
+  transform: translateY(-2px);
 }
 
 label {

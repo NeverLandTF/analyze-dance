@@ -4,40 +4,36 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Dependencies
+.Python
+env/
 venv/
 .venv/
+.ENV
+.ENV.local
 .env
 .env.local
 .env.*
+.env.local.*
+.venv/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Generated migrations
+backend/migrations/versions/*.py
 
 # Logs
 *.log
 
-# Editor/IDE
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *.tmp
 
-# Build/dist
-dist/
-build/
-target/
-
-# Coverage
-.coverage
-coverage/
-htmlcov/
-
-# MyPy
-.mypy_cache/
-
-# Pytest
-.pytest_cache/
-
-# Original rules preserved
-*.log
+# OS
+.DS_Store
+Thumbs.db
 ```

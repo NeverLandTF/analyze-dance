@@ -28,6 +28,7 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
+    avatar_url = db.Column(db.String(255))  # 用户头像 URL
     is_admin = db.Column(db.Boolean, default=False)  # 是否为管理员
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -128,7 +129,11 @@ def register():
     if User.query.filter_by(email=data['email']).first():
         return jsonify({'error': 'Email already exists'}), 409
     
-    user = User(username=data['username'], email=data['email'])
+    user = User(
+        username=data['username'], 
+        email=data['email'],
+        avatar_url=data.get('avatar_url')  # 可选的头像 URL
+    )
     user.set_password(data['password'])
     
     db.session.add(user)
@@ -138,7 +143,8 @@ def register():
     dancer = Dancer(
         user_id=user.id,
         name=data['username'],  # 使用用户名作为舞者名称
-        description='个人舞者档案'
+        description='个人舞者档案',
+        avatar_url=data.get('avatar_url')  # 同步舞者头像
     )
     db.session.add(dancer)
     
@@ -174,6 +180,48 @@ def login():
 
 
 # ===== 用户管理 =====
+
+@app.route('/api/users/<int:user_id>', methods=['GET'])
+def get_user(user_id):
+    """获取用户信息"""
+    user = User.query.get_or_404(user_id)
+    
+    return jsonify({
+        'id': user.id,
+        'username': user.username,
+        'email': user.email,
+        'avatar_url': user.avatar_url,
+        'is_admin': user.is_admin,
+        'created_at': user.created_at.isoformat() if user.created_at else None
+    })
+
+
+@app.route('/api/users/<int:user_id>/avatar', methods=['PUT'])
+def update_avatar(user_id):
+    """更新用户头像"""
+    data = request.get_json()
+    
+    if not data or not data.get('avatar_url'):
+        return jsonify({'error': 'Missing avatar_url'}), 400
+    
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    user.avatar_url = data['avatar_url']
+    
+    # 同步更新该用户的默认舞者头像
+    default_dancer = Dancer.query.filter_by(user_id=user_id).first()
+    if default_dancer:
+        default_dancer.avatar_url = data['avatar_url']
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Avatar updated successfully',
+        'avatar_url': user.avatar_url
+    })
+
 
 @app.route('/api/users/<int:user_id>/change-password', methods=['POST'])
 def change_password(user_id):

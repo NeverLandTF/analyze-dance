@@ -13,8 +13,25 @@
         <h1>个人中心</h1>
         
         <div class="profile-info">
-          <div class="avatar-large">
-            {{ userStore.user?.username?.charAt(0).toUpperCase() }}
+          <div class="avatar-section">
+            <div 
+              v-if="userAvatar" 
+              class="avatar-large" 
+              :style="{ backgroundImage: `url(${userAvatar})` }"
+            ></div>
+            <div v-else class="avatar-large">
+              {{ userStore.user?.username?.charAt(0).toUpperCase() }}
+            </div>
+            <label for="avatar-upload" class="change-avatar-btn">
+              更换头像
+              <input 
+                type="file" 
+                id="avatar-upload" 
+                accept="image/*" 
+                @change="handleAvatarChange"
+                style="display: none;"
+              />
+            </label>
           </div>
           
           <div class="info-item">
@@ -96,7 +113,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { authAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
@@ -108,12 +125,78 @@ const showPasswordModal = ref(false)
 const changingPassword = ref(false)
 const passwordError = ref('')
 const passwordSuccess = ref('')
+const userAvatar = ref(null)
+const avatarFile = ref(null)
+const isUploading = ref(false)
 
 const passwordForm = reactive({
   oldPassword: '',
   newPassword: '',
   confirmPassword: ''
 })
+
+// 加载用户信息（包括头像）
+onMounted(async () => {
+  try {
+    const response = await authAPI.getUser(userStore.userId)
+    if (response.data && response.data.avatar_url) {
+      userAvatar.value = response.data.avatar_url
+    }
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+  }
+})
+
+const handleAvatarChange = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  // 验证文件类型
+  if (!file.type.startsWith('image/')) {
+    alert('请选择图片文件')
+    return
+  }
+  
+  // 验证文件大小（最大 5MB）
+  if (file.size > 5 * 1024 * 1024) {
+    alert('图片大小不能超过 5MB')
+    return
+  }
+  
+  avatarFile.value = file
+  isUploading.value = true
+  
+  try {
+    // 上传头像到图床
+    const formDataUpload = new FormData()
+    formDataUpload.append('file', file)
+    
+    const response = await fetch('https://sm.ms/api/v2/upload', {
+      method: 'POST',
+      body: formDataUpload
+    })
+    const result = await response.json()
+    
+    if (result.success && result.data) {
+      const avatarUrl = result.data.url
+      
+      // 调用 API 更新用户头像
+      await authAPI.updateAvatar(userStore.userId, avatarUrl)
+      
+      userAvatar.value = avatarUrl
+      alert('头像更新成功！')
+    } else {
+      alert('头像上传失败，请稍后重试')
+    }
+  } catch (error) {
+    console.error('上传头像失败:', error)
+    alert('头像上传失败，请稍后重试')
+  } finally {
+    isUploading.value = false
+    // 清空 input，允许重复选择同一文件
+    event.target.value = ''
+  }
+}
 
 const handleChangePassword = async () => {
   passwordError.value = ''
@@ -230,17 +313,42 @@ const handleLogout = () => {
   margin-bottom: 30px;
 }
 
+.avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
 .avatar-large {
   width: 100px;
   height: 100px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background-size: cover;
+  background-position: center;
+  background-color: #f0f0f0;
+  border: 3px solid #667eea;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 48px;
   font-weight: bold;
+  color: white;
+}
+
+.change-avatar-btn {
+  padding: 6px 14px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+
+.change-avatar-btn:hover {
+  transform: translateY(-2px);
 }
 
 .info-item {

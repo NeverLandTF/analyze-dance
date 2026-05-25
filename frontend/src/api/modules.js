@@ -2,13 +2,23 @@ import api from './index'
 
 export const authAPI = {
   // 用户注册
-  register(username, email, password) {
-    return api.post('/auth/register', { username, email, password })
+  register(username, email, password, avatarUrl = null) {
+    return api.post('/auth/register', { username, email, password, avatar_url: avatarUrl })
   },
   
   // 用户登录
   login(username, password) {
     return api.post('/auth/login', { username, password })
+  },
+  
+  // 获取用户信息
+  getUser(userId) {
+    return api.get(`/users/${userId}`)
+  },
+  
+  // 更新用户头像
+  updateAvatar(userId, avatarUrl) {
+    return api.put(`/users/${userId}/avatar`, { avatar_url: avatarUrl })
   },
   
   // 修改密码
