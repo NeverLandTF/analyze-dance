@@ -23,6 +23,9 @@ COPY requirements.txt .
 # 安装 Python 依赖
 RUN pip install --no-cache-dir -r requirements.txt
 
+# 安装 Gunicorn 生产级 WSGI 服务器
+RUN pip install --no-cache-dir gunicorn
+
 # 复制应用代码
 COPY . .
 
@@ -33,5 +36,5 @@ USER appuser
 # 暴露端口
 EXPOSE 5000
 
-# 启动命令
-CMD ["python", "app.py"]
+# 启动脚本：先执行数据库迁移，然后启动 Gunicorn
+CMD ["sh", "-c", "flask db upgrade && exec gunicorn --bind 0.0.0.0:5000 --workers 4 --threads 2 --worker-class gthread --timeout 120 --access-logfile - --error-logfile - app:app"]
