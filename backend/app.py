@@ -686,6 +686,48 @@ def serve_avatar(filename):
     return send_from_directory(app.config['AVATAR_FOLDER'], filename)
 
 
+@app.route('/api/upload/temp-avatar', methods=['POST'])
+def upload_temp_avatar():
+    """临时头像上传接口 - 用于注册时上传头像
+    返回一个临时的 avatar_url，注册成功后会关联到用户
+    """
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    if not allowed_image(file.filename):
+        return jsonify({'error': 'File type not allowed. Allowed types: jpg, jpeg, png, gif, bmp, webp'}), 400
+    
+    # 检查文件大小
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+    
+    if file_size > MAX_AVATAR_SIZE:
+        return jsonify({'error': 'File size exceeds 5MB limit'}), 400
+    
+    # 生成唯一的文件名
+    original_filename = secure_filename(file.filename)
+    ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else 'jpg'
+    unique_filename = f"temp_{uuid.uuid4().hex}.{ext}"
+    
+    # 保存文件
+    file_path = os.path.join(app.config['AVATAR_FOLDER'], unique_filename)
+    file.save(file_path)
+    
+    # 生成访问 URL
+    avatar_url = f'/api/avatars/{unique_filename}'
+    
+    return jsonify({
+        'message': 'Avatar uploaded successfully',
+        'avatar_url': avatar_url
+    }), 201
+
+
 if __name__ == '__main__':
     # 生产环境使用 Gunicorn 启动，不需要 debug 模式
     # 开发环境下可以运行此脚本
