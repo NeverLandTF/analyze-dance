@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # MySQL 数据库服务
+  db:
+    image: mysql:8.0
+    container_name: dance_ai_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-dance_analysis}
+      MYSQL_USER: ${MYSQL_USER:-dance_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-dance_password}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - dance_ai_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 后端 Flask 服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dance_ai_backend
+    restart: always
+    environment:
+      FLASK_APP: app.py
+      FLASK_ENV: production
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-dance_user}:${MYSQL_PASSWORD:-dance_password}@db:3306/${MYSQL_DATABASE:-dance_analysis}
+      MYSQL_HOST: db
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-dance_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-dance_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-dance_analysis}
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - dance_ai_network
+    volumes:
+      - ./backend:/app
+      - backend_uploads:/app/uploads
+
+  # 前端 Vue 服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: dance_ai_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - dance_ai_network
+
+networks:
+  dance_ai_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  backend_uploads:
