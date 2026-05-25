@@ -78,6 +78,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { authAPI } from '../api/modules'
+import api from '../api/index'
 
 const router = useRouter()
 
@@ -120,24 +121,23 @@ const handleAvatarChange = (event) => {
   reader.readAsDataURL(file)
 }
 
-const uploadAvatarToCloud = async () => {
+const uploadAvatarToBackend = async () => {
   if (!avatarFile.value) return null
   
-  // 这里使用一个示例的图床服务，实际项目中应替换为自己的图片上传服务
-  // 可以使用阿里云 OSS、腾讯云 COS、AWS S3 等
   const formDataUpload = new FormData()
   formDataUpload.append('file', avatarFile.value)
   
   try {
-    // 使用 sm.ms 免费图床作为示例（生产环境请替换为自己的图片存储服务）
-    const response = await fetch('https://sm.ms/api/v2/upload', {
-      method: 'POST',
-      body: formDataUpload
+    // 使用后端头像上传接口（临时用户 ID，实际会在注册后关联）
+    // 这里我们先上传到一个临时位置，注册成功后再关联到用户
+    const response = await api.post('/upload/temp-avatar', formDataUpload, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
     })
-    const result = await response.json()
     
-    if (result.success && result.data) {
-      return result.data.url
+    if (response && response.avatar_url) {
+      return response.avatar_url
     }
     return null
   } catch (err) {
@@ -154,9 +154,9 @@ const handleRegister = async () => {
   try {
     let avatarUrl = null
     
-    // 如果选择了头像，先上传头像
+    // 如果选择了头像，先上传头像到后端
     if (avatarFile.value) {
-      avatarUrl = await uploadAvatarToCloud()
+      avatarUrl = await uploadAvatarToBackend()
       if (!avatarUrl) {
         // 头像上传失败，但仍然允许注册（头像是可选的）
         console.warn('头像上传失败，将使用默认头像')
