@@ -382,27 +382,19 @@ def get_progress(dancer_id):
 
 # ==================== 初始化数据库 ====================
 
-def create_admin_user():
-    """创建默认管理员账户"""
-    with app.app_context():
-        # 检查是否已存在管理员
-        admin = User.query.filter_by(username='admin').first()
-        if not admin:
-            admin = User(username='admin', email='admin@example.com', is_admin=True)
-            admin.set_password('admin')
-            db.session.add(admin)
-            db.session.commit()
-            print('默认管理员账户已创建：用户名=admin, 密码=admin')
-        else:
-            print('管理员账户已存在')
-
 # Flask-Migrate 已自动处理数据库迁移
 # 使用命令:
 #   flask db init    - 初始化迁移仓库 (仅需一次)
 #   flask db migrate -m "描述"  - 创建新的迁移文件
-#   flask db upgrade - 应用迁移到数据库
+#   flask db upgrade - 应用迁移到数据库 (会自动创建管理员账户)
 
 
 if __name__ == '__main__':
-    create_admin_user()  # 启动时创建管理员账户
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # 生产环境使用 Gunicorn 启动，不需要 debug 模式
+    # 开发环境下可以运行此脚本
+    import os
+    debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    if debug_mode:
+        app.run(debug=True, host='0.0.0.0', port=5000)
+    else:
+        print('Production mode: Use Gunicorn to start the application')
