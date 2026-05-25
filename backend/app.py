@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from datetime import datetime
 import hashlib
 
@@ -13,6 +14,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 
 # ==================== 数据模型 ====================
@@ -370,16 +372,12 @@ def get_progress(dancer_id):
 
 # ==================== 初始化数据库 ====================
 
-@app.before_request
-def create_tables():
-    """在首次请求前创建数据库表"""
-    if not hasattr(app, '_tables_created'):
-        db.create_all()
-        app._tables_created = True
+# Flask-Migrate 已自动处理数据库迁移
+# 使用命令:
+#   flask db init    - 初始化迁移仓库 (仅需一次)
+#   flask db migrate -m "描述"  - 创建新的迁移文件
+#   flask db upgrade - 应用迁移到数据库
 
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-    
     app.run(debug=True, host='0.0.0.0', port=5000)
