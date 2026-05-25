@@ -183,4 +183,43 @@ input:focus {
 .switch-form a:hover {
   text-decoration: underline;
 }
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .login-container {
+    padding: 15px;
+  }
+
+  .login-box {
+    padding: 30px 20px;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+  }
+
+  input {
+    padding: 10px;
+    font-size: 16px; /* 防止 iOS 缩放 */
+  }
+
+  .btn-primary {
+    padding: 14px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-box {
+    padding: 25px 15px;
+  }
+
+  h1 {
+    font-size: 22px;
+  }
+}
 </style>

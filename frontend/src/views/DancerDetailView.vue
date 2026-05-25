@@ -25,18 +25,21 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   background: #f5f7fa;
+  padding: 20px;
 }
 
 h1 {
   font-size: 36px;
   color: #333;
   margin-bottom: 20px;
+  text-align: center;
 }
 
 p {
   font-size: 18px;
   color: #666;
   margin-bottom: 30px;
+  text-align: center;
 }
 
 .btn-home {
@@ -51,5 +54,35 @@ p {
 
 .btn-home:hover {
   transform: translateY(-2px);
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  h1 {
+    font-size: 28px;
+  }
+
+  p {
+    font-size: 16px;
+  }
+
+  .btn-home {
+    padding: 10px 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 24px;
+  }
+
+  p {
+    font-size: 14px;
+  }
+
+  .btn-home {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
 }
 </style>
