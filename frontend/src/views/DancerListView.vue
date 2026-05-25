@@ -11,7 +11,10 @@
     <main class="main-content">
       <div class="header">
         <h1>舞者管理</h1>
-        <button @click="showCreateModal = true" class="btn-primary">+ 创建新舞者</button>
+        <div class="header-actions">
+          <span v-if="userStore.isAdmin" class="admin-badge">管理员</span>
+          <button @click="showCreateModal = true" class="btn-primary">+ 创建新舞者</button>
+        </div>
       </div>
       
       <div v-if="loading" class="loading">加载中...</div>
@@ -34,6 +37,7 @@
           <p class="description">{{ dancer.description || '暂无描述' }}</p>
           <div class="stats">
             <span>视频数：{{ dancer.video_count }}</span>
+            <span v-if="dancer.owner_username && !userStore.isAdmin" class="owner-info">所有者：{{ dancer.owner_username }}</span>
           </div>
         </div>
       </div>
@@ -100,7 +104,8 @@ onMounted(async () => {
 
 const loadDancers = async () => {
   try {
-    const response = await dancerAPI.getDancers(userStore.userId)
+    // 管理员不需要传 user_id，可以查看所有舞者
+    const response = await dancerAPI.getDancers(userStore.userId, userStore.isAdmin)
     dancers.value = response.dancers
   } catch (error) {
     console.error('加载舞者列表失败:', error)
@@ -113,6 +118,7 @@ const handleCreate = async () => {
   creating.value = true
   
   try {
+    // 管理员创建舞者时，可以选择分配给任何用户（这里简化为分配给自己或创建公共舞者）
     await dancerAPI.createDancer({
       user_id: userStore.userId,
       name: newDancer.name,
@@ -196,6 +202,21 @@ const handleLogout = () => {
   margin-bottom: 30px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.admin-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .header h1 {
   font-size: 32px;
   color: #333;
@@ -277,6 +298,14 @@ const handleLogout = () => {
 .stats {
   color: #999;
   font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.owner-info {
+  color: #667eea;
+  font-size: 12px;
 }
 
 .modal-overlay {

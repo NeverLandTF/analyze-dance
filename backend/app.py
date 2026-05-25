@@ -28,6 +28,7 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False)  # 是否为管理员
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     dancers = db.relationship('Dancer', backref='user', lazy=True, cascade='all, delete-orphan')
@@ -156,7 +157,8 @@ def login():
     return jsonify({
         'message': 'Login successful',
         'user_id': user.id,
-        'username': user.username
+        'username': user.username,
+        'is_admin': user.is_admin
     })
 
 
@@ -164,13 +166,19 @@ def login():
 
 @app.route('/api/dancers', methods=['GET'])
 def get_dancers():
-    """获取当前用户的所有舞者"""
+    """获取舞者列表 - 管理员可查看所有舞者，普通用户只看自己的"""
     user_id = request.args.get('user_id')
+    is_admin = request.args.get('is_admin', 'false').lower() == 'true'
     
-    if not user_id:
-        return jsonify({'error': 'user_id is required'}), 400
+    if not user_id and not is_admin:
+        return jsonify({'error': 'user_id is required for non-admin users'}), 400
     
-    dancers = Dancer.query.filter_by(user_id=user_id).all()
+    if is_admin:
+        # 管理员可以查看所有舞者
+        dancers = Dancer.query.all()
+    else:
+        # 普通用户只能查看自己的舞者
+        dancers = Dancer.query.filter_by(user_id=user_id).all()
     
     return jsonify({
         'dancers': [{
@@ -179,7 +187,8 @@ def get_dancers():
             'description': d.description,
             'avatar_url': d.avatar_url,
             'created_at': d.created_at.isoformat(),
-            'video_count': len(d.videos)
+            'video_count': len(d.videos),
+            'owner_username': d.user.username  # 显示舞者所属用户名
         } for d in dancers]
     })
 
@@ -373,6 +382,20 @@ def get_progress(dancer_id):
 
 # ==================== 初始化数据库 ====================
 
+def create_admin_user():
+    """创建默认管理员账户"""
+    with app.app_context():
+        # 检查是否已存在管理员
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            admin = User(username='admin', email='admin@example.com', is_admin=True)
+            admin.set_password('admin')
+            db.session.add(admin)
+            db.session.commit()
+            print('默认管理员账户已创建：用户名=admin, 密码=admin')
+        else:
+            print('管理员账户已存在')
+
 # Flask-Migrate 已自动处理数据库迁移
 # 使用命令:
 #   flask db init    - 初始化迁移仓库 (仅需一次)
@@ -381,4 +404,5 @@ def get_progress(dancer_id):
 
 
 if __name__ == '__main__':
+    create_admin_user()  # 启动时创建管理员账户
     app.run(debug=True, host='0.0.0.0', port=5000)

@@ -67,7 +67,8 @@ const handleLogin = async () => {
     
     userStore.setUser(
       { id: response.user_id, username: response.username },
-      'mock-token-' + response.user_id // 实际项目中应使用真实 token
+      'mock-token-' + response.user_id, // 实际项目中应使用真实 token
+      response.is_admin || false // 保存管理员状态
     )
     
     router.push('/')
@@ -82,11 +83,13 @@ const handleLogin = async () => {
 <style scoped>
 .login-container {
   min-height: 100vh;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 20px;
+  box-sizing: border-box;
 }
 
 .login-box {
