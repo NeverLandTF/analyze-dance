@@ -5,6 +5,8 @@ from flask_migrate import Migrate
 from datetime import datetime
 import hashlib
 import os
+import uuid
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 CORS(app)
@@ -14,8 +16,34 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'mysql+py
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 
+# 文件上传配置
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
+AVATAR_FOLDER = os.path.join(os.path.dirname(__file__), 'avatars')
+ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv', 'webm'}
+ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'}
+MAX_CONTENT_LENGTH = 500 * 1024 * 1024  # 500MB 最大文件大小
+MAX_AVATAR_SIZE = 5 * 1024 * 1024  # 5MB 最大头像大小
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['AVATAR_FOLDER'] = AVATAR_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+
+# 确保上传目录存在
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(AVATAR_FOLDER, exist_ok=True)
+
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
+
+def allowed_file(filename):
+    """检查文件扩展名是否允许（视频）"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def allowed_image(filename):
+    """检查文件扩展名是否允许（图片）"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
 
 
 # ==================== 数据模型 ====================
@@ -198,29 +226,78 @@ def get_user(user_id):
 
 @app.route('/api/users/<int:user_id>/avatar', methods=['PUT'])
 def update_avatar(user_id):
-    """更新用户头像"""
-    data = request.get_json()
-    
-    if not data or not data.get('avatar_url'):
-        return jsonify({'error': 'Missing avatar_url'}), 400
-    
-    user = User.query.get(user_id)
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
-    
-    user.avatar_url = data['avatar_url']
-    
-    # 同步更新该用户的默认舞者头像
-    default_dancer = Dancer.query.filter_by(user_id=user_id).first()
-    if default_dancer:
-        default_dancer.avatar_url = data['avatar_url']
-    
-    db.session.commit()
-    
-    return jsonify({
-        'message': 'Avatar updated successfully',
-        'avatar_url': user.avatar_url
-    })
+    """更新用户头像（支持 URL 或文件上传）"""
+    # 检查是否是文件上传
+    if 'file' in request.files:
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+        
+        if not allowed_image(file.filename):
+            return jsonify({'error': 'File type not allowed. Allowed types: jpg, jpeg, png, gif, bmp, webp'}), 400
+        
+        # 检查文件大小
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        
+        if file_size > MAX_AVATAR_SIZE:
+            return jsonify({'error': 'File size exceeds 5MB limit'}), 400
+        
+        # 生成唯一的文件名
+        original_filename = secure_filename(file.filename)
+        ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else 'jpg'
+        unique_filename = f"{uuid.uuid4().hex}.{ext}"
+        
+        # 保存文件
+        file_path = os.path.join(app.config['AVATAR_FOLDER'], unique_filename)
+        file.save(file_path)
+        
+        # 生成访问 URL
+        avatar_url = f'/api/avatars/{unique_filename}'
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        user.avatar_url = avatar_url
+        
+        # 同步更新该用户的默认舞者头像
+        default_dancer = Dancer.query.filter_by(user_id=user_id).first()
+        if default_dancer:
+            default_dancer.avatar_url = avatar_url
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Avatar uploaded successfully',
+            'avatar_url': user.avatar_url
+        })
+    else:
+        # JSON 方式更新头像 URL
+        data = request.get_json()
+        
+        if not data or not data.get('avatar_url'):
+            return jsonify({'error': 'Missing avatar_url'}), 400
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        user.avatar_url = data['avatar_url']
+        
+        # 同步更新该用户的默认舞者头像
+        default_dancer = Dancer.query.filter_by(user_id=user_id).first()
+        if default_dancer:
+            default_dancer.avatar_url = data['avatar_url']
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Avatar updated successfully',
+            'avatar_url': user.avatar_url
+        })
 
 
 @app.route('/api/users/<int:user_id>/change-password', methods=['POST'])
@@ -337,9 +414,63 @@ def get_dancer(dancer_id):
 
 # ===== 视频管理 =====
 
+@app.route('/api/videos/upload', methods=['POST'])
+def upload_video_file():
+    """上传视频文件"""
+    # 检查是否有文件部分
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'File type not allowed'}), 400
+    
+    # 获取表单数据
+    user_id = request.form.get('user_id')
+    dancer_id = request.form.get('dancer_id')
+    title = request.form.get('title')
+    dance_style = request.form.get('dance_style', '')
+    
+    if not user_id or not dancer_id or not title:
+        return jsonify({'error': 'Missing required fields (user_id, dancer_id, title)'}), 400
+    
+    # 生成唯一的文件名
+    original_filename = secure_filename(file.filename)
+    ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else 'mp4'
+    unique_filename = f"{uuid.uuid4().hex}.{ext}"
+    
+    # 保存文件
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+    file.save(file_path)
+    
+    # 创建视频记录
+    video = Video(
+        user_id=int(user_id),
+        dancer_id=int(dancer_id),
+        title=title,
+        file_path=f'/uploads/{unique_filename}',
+        thumbnail_url=None,
+        duration=None,
+        dance_style=dance_style
+    )
+    
+    db.session.add(video)
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Video uploaded successfully',
+        'video_id': video.id,
+        'file_path': video.file_path
+    }), 201
+
+
 @app.route('/api/videos', methods=['POST'])
 def upload_video():
-    """上传视频"""
+    """上传视频（元数据方式，用于兼容旧接口）"""
     data = request.get_json()
     
     if not data or not data.get('user_id') or not data.get('dancer_id') or not data.get('title'):
@@ -362,6 +493,60 @@ def upload_video():
         'message': 'Video uploaded successfully',
         'video_id': video.id
     }), 201
+
+
+@app.route('/api/videos', methods=['GET'])
+def get_videos():
+    """获取视频列表"""
+    user_id = request.args.get('user_id')
+    dancer_id = request.args.get('dancer_id')
+    
+    if not user_id:
+        return jsonify({'error': 'user_id is required'}), 400
+    
+    query = Video.query.filter_by(user_id=int(user_id))
+    
+    if dancer_id:
+        query = query.filter_by(dancer_id=int(dancer_id))
+    
+    videos = query.order_by(Video.upload_date.desc()).all()
+    
+    return jsonify({
+        'videos': [{
+            'id': v.id,
+            'title': v.title,
+            'file_path': v.file_path,
+            'thumbnail_url': v.thumbnail_url,
+            'duration': v.duration,
+            'upload_date': v.upload_date.isoformat() if v.upload_date else None,
+            'dance_style': v.dance_style,
+            'dancer_id': v.dancer_id
+        } for v in videos]
+    })
+
+
+@app.route('/api/videos/<int:video_id>', methods=['GET'])
+def get_video(video_id):
+    """获取单个视频详情"""
+    video = Video.query.get_or_404(video_id)
+    
+    return jsonify({
+        'id': video.id,
+        'title': video.title,
+        'file_path': video.file_path,
+        'thumbnail_url': video.thumbnail_url,
+        'duration': video.duration,
+        'upload_date': video.upload_date.isoformat() if video.upload_date else None,
+        'dance_style': video.dance_style,
+        'dancer_id': video.dancer_id,
+        'analyses': [{
+            'id': a.id,
+            'analysis_type': a.analysis_type,
+            'result_data': a.result_data,
+            'confidence_score': a.confidence_score,
+            'processed_at': a.processed_at.isoformat() if a.processed_at else None
+        } for a in video.analyses]
+    })
 
 
 # ===== AI 分析 =====
@@ -484,6 +669,21 @@ def get_progress(dancer_id):
 #   flask db init    - 初始化迁移仓库 (仅需一次)
 #   flask db migrate -m "描述"  - 创建新的迁移文件
 #   flask db upgrade - 应用迁移到数据库 (会自动创建管理员账户)
+
+
+# 静态文件服务 - 提供上传的视频文件和头像访问
+@app.route('/api/uploads/<filename>')
+def serve_upload(filename):
+    """提供上传的视频文件访问"""
+    from flask import send_from_directory
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+
+@app.route('/api/avatars/<filename>')
+def serve_avatar(filename):
+    """提供头像文件访问"""
+    from flask import send_from_directory
+    return send_from_directory(app.config['AVATAR_FOLDER'], filename)
 
 
 if __name__ == '__main__':

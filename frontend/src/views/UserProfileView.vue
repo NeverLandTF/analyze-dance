@@ -167,22 +167,11 @@ const handleAvatarChange = async (event) => {
   isUploading.value = true
   
   try {
-    // 上传头像到图床
-    const formDataUpload = new FormData()
-    formDataUpload.append('file', file)
+    // 上传头像到后端服务器
+    const response = await authAPI.uploadAvatarFile(userStore.userId, file)
     
-    const response = await fetch('https://sm.ms/api/v2/upload', {
-      method: 'POST',
-      body: formDataUpload
-    })
-    const result = await response.json()
-    
-    if (result.success && result.data) {
-      const avatarUrl = result.data.url
-      
-      // 调用 API 更新用户头像
-      await authAPI.updateAvatar(userStore.userId, avatarUrl)
-      
+    if (response.data && response.data.avatar_url) {
+      const avatarUrl = response.data.avatar_url
       userAvatar.value = avatarUrl
       alert('头像更新成功！')
     } else {
@@ -190,7 +179,7 @@ const handleAvatarChange = async (event) => {
     }
   } catch (error) {
     console.error('上传头像失败:', error)
-    alert('头像上传失败，请稍后重试')
+    alert('头像上传失败：' + (error.response?.data?.error || '请稍后重试'))
   } finally {
     isUploading.value = false
     // 清空 input，允许重复选择同一文件
