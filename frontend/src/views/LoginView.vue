@@ -74,6 +74,7 @@ const handleLogin = async () => {
     router.push('/')
   } catch (err) {
     error.value = err.response?.data?.error || '登录失败，请检查用户名和密码'
+    // 不清空表单，让用户可以修改后重试，也不刷新页面
   } finally {
     loading.value = false
   }

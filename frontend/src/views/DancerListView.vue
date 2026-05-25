@@ -4,7 +4,44 @@
       <div class="nav-brand">🎵 舞蹈 AI 分析</div>
       <div class="nav-links">
         <router-link to="/" class="nav-link">首页</router-link>
-        <button @click="handleLogout" class="btn-logout">退出</button>
+        
+        <!-- 用户头像下拉菜单 -->
+        <div class="user-menu" ref="userMenuRef">
+          <div class="avatar-btn" @click="toggleUserMenu">
+            <div class="avatar-small">
+              {{ userStore.user?.username?.charAt(0).toUpperCase() }}
+            </div>
+          </div>
+          
+          <div v-if="showUserMenu" class="dropdown-menu">
+            <div class="dropdown-header">
+              <div class="avatar-medium">
+                {{ userStore.user?.username?.charAt(0).toUpperCase() }}
+              </div>
+              <div class="user-info">
+                <div class="username">{{ userStore.user?.username }}</div>
+                <div class="role-badge" :class="userStore.isAdmin ? 'admin' : 'user'">
+                  {{ userStore.isAdmin ? '管理员' : '普通用户' }}
+                </div>
+              </div>
+            </div>
+            
+            <div class="dropdown-divider"></div>
+            
+            <router-link to="/profile" class="dropdown-item">
+              <span class="icon">👤</span> 个人中心
+            </router-link>
+            <router-link to="/profile#password" class="dropdown-item">
+              <span class="icon">🔐</span> 密码修改
+            </router-link>
+            
+            <div class="dropdown-divider"></div>
+            
+            <button @click="handleLogout" class="dropdown-item logout-btn">
+              <span class="icon">🚪</span> 退出登录
+            </button>
+          </div>
+        </div>
       </div>
     </nav>
     
@@ -13,14 +50,15 @@
         <h1>舞者管理</h1>
         <div class="header-actions">
           <span v-if="userStore.isAdmin" class="admin-badge">管理员</span>
-          <button @click="showCreateModal = true" class="btn-primary">+ 创建新舞者</button>
+          <button v-if="userStore.isAdmin" @click="showCreateModal = true" class="btn-primary">+ 创建新舞者</button>
         </div>
       </div>
       
       <div v-if="loading" class="loading">加载中...</div>
       
       <div v-else-if="dancers.length === 0" class="empty-state">
-        <p>暂无舞者，点击上方按钮创建第一个舞者</p>
+        <p v-if="userStore.isAdmin">暂无舞者，点击上方按钮创建第一个舞者</p>
+        <p v-else>您已拥有个人舞者档案，可以直接上传视频进行分析</p>
       </div>
       
       <div v-else class="dancers-grid">
@@ -80,7 +118,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { dancerAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
@@ -93,13 +131,28 @@ const loading = ref(true)
 const showCreateModal = ref(false)
 const creating = ref(false)
 
-const newDancer = reactive({
-  name: '',
-  description: ''
-})
+// 用户菜单相关
+const showUserMenu = ref(false)
+const userMenuRef = ref(null)
+
+const toggleUserMenu = () => {
+  showUserMenu.value = !showUserMenu.value
+}
+
+// 点击外部关闭菜单
+const handleClickOutside = (event) => {
+  if (userMenuRef.value && !userMenuRef.value.contains(event.target)) {
+    showUserMenu.value = false
+  }
+}
 
 onMounted(async () => {
+  document.addEventListener('click', handleClickOutside)
   await loadDancers()
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 
 const loadDancers = async () => {
@@ -113,6 +166,11 @@ const loadDancers = async () => {
     loading.value = false
   }
 }
+
+const newDancer = reactive({
+  name: '',
+  description: ''
+})
 
 const handleCreate = async () => {
   creating.value = true
@@ -179,14 +237,124 @@ const handleLogout = () => {
   transition: background 0.3s;
 }
 
-.btn-logout {
-  padding: 8px 20px;
-  background: #e74c3c;
-  color: white;
-  border: none;
-  border-radius: 6px;
+/* 用户头像下拉菜单样式 */
+.user-menu {
+  position: relative;
+}
+
+.avatar-btn {
   cursor: pointer;
-  font-weight: 500;
+  transition: transform 0.2s;
+}
+
+.avatar-btn:hover {
+  transform: scale(1.1);
+}
+
+.avatar-small {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  min-width: 220px;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.dropdown-header {
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.avatar-medium {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.user-info {
+  flex: 1;
+}
+
+.username {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.role-badge {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  display: inline-block;
+}
+
+.role-badge.admin {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.role-badge.user {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 8px 0;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  color: #333;
+  text-decoration: none;
+  transition: background 0.2s;
+  border: none;
+  background: none;
+  width: 100%;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.dropdown-item:hover {
+  background: #f5f7fa;
+}
+
+.dropdown-item.logout-btn {
+  color: #e74c3c;
+}
+
+.icon {
+  font-size: 18px;
 }
 
 .main-content {
@@ -437,11 +605,6 @@ const handleLogout = () => {
 
   .nav-link {
     padding: 6px 12px;
-    font-size: 14px;
-  }
-
-  .btn-logout {
-    padding: 6px 16px;
     font-size: 14px;
   }
 

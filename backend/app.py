@@ -115,7 +115,7 @@ def health_check():
 
 @app.route('/api/auth/register', methods=['POST'])
 def register():
-    """用户注册"""
+    """用户注册 - 注册时自动创建一个同名舞者"""
     data = request.get_json()
     
     if not data or not data.get('username') or not data.get('email') or not data.get('password'):
@@ -132,11 +132,22 @@ def register():
     user.set_password(data['password'])
     
     db.session.add(user)
+    db.session.flush()  # 获取 user.id 但不提交
+    
+    # 自动创建一个同名舞者（普通用户只能有一个舞者，就是自己）
+    dancer = Dancer(
+        user_id=user.id,
+        name=data['username'],  # 使用用户名作为舞者名称
+        description='个人舞者档案'
+    )
+    db.session.add(dancer)
+    
     db.session.commit()
     
     return jsonify({
         'message': 'User registered successfully',
-        'user_id': user.id
+        'user_id': user.id,
+        'dancer_id': dancer.id
     }), 201
 
 
@@ -160,6 +171,31 @@ def login():
         'username': user.username,
         'is_admin': user.is_admin
     })
+
+
+# ===== 用户管理 =====
+
+@app.route('/api/users/<int:user_id>/change-password', methods=['POST'])
+def change_password(user_id):
+    """修改密码"""
+    data = request.get_json()
+    
+    if not data or not data.get('old_password') or not data.get('new_password'):
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # 验证旧密码
+    if not user.check_password(data['old_password']):
+        return jsonify({'error': '旧密码错误'}), 401
+    
+    # 设置新密码
+    user.set_password(data['new_password'])
+    db.session.commit()
+    
+    return jsonify({'message': 'Password changed successfully'})
 
 
 # ===== 舞者管理 =====
@@ -195,14 +231,27 @@ def get_dancers():
 
 @app.route('/api/dancers', methods=['POST'])
 def create_dancer():
-    """创建新舞者"""
+    """创建新舞者 - 仅管理员可以创建（管理员创建舞者相当于创建一个可登录的用户）"""
     data = request.get_json()
     
     if not data or not data.get('user_id') or not data.get('name'):
         return jsonify({'error': 'Missing required fields'}), 400
     
+    user_id = data['user_id']
+    
+    # 检查是否为管理员
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    is_admin = user.is_admin
+    
+    # 只有管理员才能创建舞者
+    if not is_admin:
+        return jsonify({'error': '普通用户无法创建舞者，注册时已自动创建个人舞者档案'}), 403
+    
     dancer = Dancer(
-        user_id=data['user_id'],
+        user_id=user_id,
         name=data['name'],
         description=data.get('description', ''),
         avatar_url=data.get('avatar_url')

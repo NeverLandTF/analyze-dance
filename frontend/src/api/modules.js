@@ -9,6 +9,11 @@ export const authAPI = {
   // 用户登录
   login(username, password) {
     return api.post('/auth/login', { username, password })
+  },
+  
+  // 修改密码
+  changePassword(userId, oldPassword, newPassword) {
+    return api.post(`/users/${userId}/change-password`, { old_password: oldPassword, new_password: newPassword })
   }
 }
 

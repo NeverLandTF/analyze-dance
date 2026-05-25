@@ -6,16 +6,38 @@ __pycache__/
 *.pyd
 
 # Dependencies
-.venv/
 venv/
-env/
-requirements.txt.bak
+.venv/
+.env
+.env.local
+.env.*
 
 # Logs
 *.log
 
-# Environment
-.env
-.env.local
-.env.*
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# Build/dist
+dist/
+build/
+target/
+
+# Coverage
+.coverage
+coverage/
+htmlcov/
+
+# MyPy
+.mypy_cache/
+
+# Pytest
+.pytest_cache/
+
+# Original rules preserved
+*.log
 ```
