@@ -6,7 +6,44 @@
         <span v-if="userStore.isAdmin" class="admin-badge-nav">管理员</span>
         <router-link to="/dancers" class="nav-link">舞者管理</router-link>
         <router-link to="/upload" class="nav-link">上传视频</router-link>
-        <button @click="handleLogout" class="btn-logout">退出</button>
+        
+        <!-- 用户头像下拉菜单 -->
+        <div class="user-menu" ref="userMenuRef">
+          <div class="avatar-btn" @click="toggleUserMenu">
+            <div class="avatar-small">
+              {{ userStore.user?.username?.charAt(0).toUpperCase() }}
+            </div>
+          </div>
+          
+          <div v-if="showUserMenu" class="dropdown-menu">
+            <div class="dropdown-header">
+              <div class="avatar-medium">
+                {{ userStore.user?.username?.charAt(0).toUpperCase() }}
+              </div>
+              <div class="user-info">
+                <div class="username">{{ userStore.user?.username }}</div>
+                <div class="role-badge" :class="userStore.isAdmin ? 'admin' : 'user'">
+                  {{ userStore.isAdmin ? '管理员' : '普通用户' }}
+                </div>
+              </div>
+            </div>
+            
+            <div class="dropdown-divider"></div>
+            
+            <router-link to="/profile" class="dropdown-item">
+              <span class="icon">👤</span> 个人中心
+            </router-link>
+            <router-link to="/profile#password" class="dropdown-item">
+              <span class="icon">🔐</span> 密码修改
+            </router-link>
+            
+            <div class="dropdown-divider"></div>
+            
+            <button @click="handleLogout" class="dropdown-item logout-btn">
+              <span class="icon">🚪</span> 退出登录
+            </button>
+          </div>
+        </div>
       </div>
     </nav>
     
@@ -46,11 +83,35 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
 const userStore = useUserStore()
+
+const showUserMenu = ref(false)
+const userMenuRef = ref(null)
+
+const toggleUserMenu = () => {
+  showUserMenu.value = !showUserMenu.value
+}
+
+// 点击外部关闭菜单
+const handleClickOutside = (event) => {
+  if (userMenuRef.value && !userMenuRef.value.contains(event.target)) {
+    showUserMenu.value = false
+  }
+}
+
+// 监听点击外部事件
+import { onMounted, onUnmounted } from 'vue'
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 
 const handleLogout = () => {
   userStore.logout()
@@ -107,19 +168,124 @@ const handleLogout = () => {
   font-weight: 600;
 }
 
-.btn-logout {
-  padding: 8px 20px;
-  background: #e74c3c;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.3s;
+/* 用户头像下拉菜单样式 */
+.user-menu {
+  position: relative;
 }
 
-.btn-logout:hover {
-  background: #c0392b;
+.avatar-btn {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.avatar-btn:hover {
+  transform: scale(1.1);
+}
+
+.avatar-small {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  min-width: 220px;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.dropdown-header {
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.avatar-medium {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.user-info {
+  flex: 1;
+}
+
+.username {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.role-badge {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  display: inline-block;
+}
+
+.role-badge.admin {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.role-badge.user {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 8px 0;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  color: #333;
+  text-decoration: none;
+  transition: background 0.2s;
+  border: none;
+  background: none;
+  width: 100%;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.dropdown-item:hover {
+  background: #f5f7fa;
+}
+
+.dropdown-item.logout-btn {
+  color: #e74c3c;
+}
+
+.icon {
+  font-size: 18px;
 }
 
 .main-content {
@@ -240,11 +406,6 @@ const handleLogout = () => {
 
   .nav-link {
     padding: 6px 12px;
-    font-size: 14px;
-  }
-
-  .btn-logout {
-    padding: 6px 16px;
     font-size: 14px;
   }
 
