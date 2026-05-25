@@ -290,6 +290,7 @@ const handleLogout = () => {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 20px;
 }
 
 .modal {
@@ -298,6 +299,8 @@ const handleLogout = () => {
   border-radius: 12px;
   width: 100%;
   max-width: 450px;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .modal h2 {
@@ -347,5 +350,120 @@ const handleLogout = () => {
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 15px 20px;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .nav-brand {
+    font-size: 20px;
+  }
+
+  .main-content {
+    padding: 30px 15px;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 15px;
+    align-items: stretch;
+  }
+
+  .header h1 {
+    font-size: 26px;
+  }
+
+  .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .dancers-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+  }
+
+  .dancer-card {
+    padding: 25px;
+  }
+
+  .modal {
+    padding: 30px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar {
+    padding: 12px 15px;
+  }
+
+  .nav-brand {
+    font-size: 18px;
+  }
+
+  .nav-link {
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+
+  .btn-logout {
+    padding: 6px 16px;
+    font-size: 14px;
+  }
+
+  .main-content {
+    padding: 20px 10px;
+  }
+
+  .header h1 {
+    font-size: 22px;
+  }
+
+  .dancers-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .dancer-card {
+    padding: 20px;
+  }
+
+  .dancer-avatar {
+    width: 50px;
+    height: 50px;
+    font-size: 24px;
+  }
+
+  .dancer-card h3 {
+    font-size: 18px;
+  }
+
+  .description {
+    font-size: 13px;
+  }
+
+  .modal {
+    padding: 25px 15px;
+  }
+
+  .form-group input,
+  .form-group textarea {
+    font-size: 16px; /* 防止 iOS 缩放 */
+    padding: 10px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .btn-secondary,
+  .btn-primary {
+    width: 100%;
+  }
 }
 </style>
