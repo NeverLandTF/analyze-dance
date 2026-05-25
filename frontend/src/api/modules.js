@@ -14,8 +14,8 @@ export const authAPI = {
 
 export const dancerAPI = {
   // 获取所有舞者
-  getDancers(userId) {
-    return api.get(`/dancers?user_id=${userId}`)
+  getDancers(userId, isAdmin = false) {
+    return api.get(`/dancers?user_id=${userId}&is_admin=${isAdmin}`)
   },
   
   // 创建舞者

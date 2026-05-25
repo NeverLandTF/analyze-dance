@@ -3,6 +3,7 @@
     <nav class="navbar">
       <div class="nav-brand">🎵 舞蹈 AI 分析</div>
       <div class="nav-links">
+        <span v-if="userStore.isAdmin" class="admin-badge-nav">管理员</span>
         <router-link to="/dancers" class="nav-link">舞者管理</router-link>
         <router-link to="/upload" class="nav-link">上传视频</router-link>
         <button @click="handleLogout" class="btn-logout">退出</button>
@@ -95,6 +96,15 @@ const handleLogout = () => {
 
 .nav-link:hover {
   background: #f0f0f0;
+}
+
+.admin-badge-nav {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .btn-logout {
