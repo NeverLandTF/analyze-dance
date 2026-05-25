@@ -16,9 +16,21 @@ export const authAPI = {
     return api.get(`/users/${userId}`)
   },
   
-  // 更新用户头像
+  // 更新用户头像（支持文件上传）
   updateAvatar(userId, avatarUrl) {
     return api.put(`/users/${userId}/avatar`, { avatar_url: avatarUrl })
+  },
+  
+  // 上传头像文件
+  uploadAvatarFile(userId, file) {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    return api.put(`/users/${userId}/avatar`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
   },
   
   // 修改密码
@@ -45,7 +57,43 @@ export const dancerAPI = {
 }
 
 export const videoAPI = {
-  // 上传视频
+  // 上传视频文件
+  uploadVideoFile(file, userId, dancerId, title, danceStyle = '') {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('user_id', userId)
+    formData.append('dancer_id', dancerId)
+    formData.append('title', title)
+    if (danceStyle) {
+      formData.append('dance_style', danceStyle)
+    }
+    
+    return api.post('/videos/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      onUploadProgress: (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+        console.log(`Upload progress: ${percentCompleted}%`)
+      }
+    })
+  },
+  
+  // 获取视频列表
+  getVideos(userId, dancerId = null) {
+    let url = `/videos?user_id=${userId}`
+    if (dancerId) {
+      url += `&dancer_id=${dancerId}`
+    }
+    return api.get(url)
+  },
+  
+  // 获取单个视频详情
+  getVideo(videoId) {
+    return api.get(`/videos/${videoId}`)
+  },
+  
+  // 上传视频（元数据方式，兼容旧接口）
   uploadVideo(videoData) {
     return api.post('/videos', videoData)
   }
@@ -55,6 +103,11 @@ export const analysisAPI = {
   // 分析视频
   analyzeVideo(videoId, userId) {
     return api.post('/analyze', { video_id: videoId, user_id: userId })
+  },
+  
+  // 获取视频分析结果
+  getAnalysisResults(videoId) {
+    return api.get(`/videos/${videoId}`).then(res => res.analyses || [])
   }
 }
 

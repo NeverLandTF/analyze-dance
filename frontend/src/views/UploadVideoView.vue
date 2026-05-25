@@ -1,81 +1,1077 @@
 <template>
-  <div class="placeholder-view">
-    <h1>上传视频</h1>
-    <p>该页面正在开发中...</p>
-    <router-link to="/" class="btn-home">返回首页</router-link>
+  <div class="upload-container">
+    <nav class="navbar">
+      <div class="nav-brand">🎵 舞蹈 AI 分析</div>
+      <div class="nav-links">
+        <router-link to="/" class="nav-link">首页</router-link>
+        <router-link to="/dancers" class="nav-link">舞者管理</router-link>
+        
+        <!-- 用户头像下拉菜单 -->
+        <div class="user-menu" ref="userMenuRef">
+          <div class="avatar-btn" @click="toggleUserMenu">
+            <div class="avatar-small">
+              {{ userStore.user?.username?.charAt(0).toUpperCase() }}
+            </div>
+          </div>
+          
+          <div v-if="showUserMenu" class="dropdown-menu">
+            <div class="dropdown-header">
+              <div class="avatar-medium">
+                {{ userStore.user?.username?.charAt(0).toUpperCase() }}
+              </div>
+              <div class="user-info">
+                <div class="username">{{ userStore.user?.username }}</div>
+                <div class="role-badge" :class="userStore.isAdmin ? 'admin' : 'user'">
+                  {{ userStore.isAdmin ? '管理员' : '普通用户' }}
+                </div>
+              </div>
+            </div>
+            
+            <div class="dropdown-divider"></div>
+            
+            <router-link to="/profile" class="dropdown-item">
+              <span class="icon">👤</span> 个人中心
+            </router-link>
+            <router-link to="/profile#password" class="dropdown-item">
+              <span class="icon">🔐</span> 密码修改
+            </router-link>
+            
+            <div class="dropdown-divider"></div>
+            
+            <button @click="handleLogout" class="dropdown-item logout-btn">
+              <span class="icon">🚪</span> 退出登录
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
+    
+    <main class="main-content">
+      <div class="header">
+        <h1>上传视频</h1>
+      </div>
+      
+      <div class="upload-section">
+        <!-- 选择舞者 -->
+        <div class="form-group">
+          <label>选择舞者</label>
+          <select v-model="selectedDancerId" class="form-select" :disabled="loading || uploading">
+            <option value="">请选择舞者</option>
+            <option v-for="dancer in dancers" :key="dancer.id" :value="dancer.id">
+              {{ dancer.name }}
+            </option>
+          </select>
+        </div>
+        
+        <!-- 视频标题 -->
+        <div class="form-group">
+          <label>视频标题</label>
+          <input 
+            type="text" 
+            v-model="videoTitle" 
+            placeholder="输入视频标题"
+            class="form-input"
+            :disabled="uploading"
+          />
+        </div>
+        
+        <!-- 舞蹈风格 -->
+        <div class="form-group">
+          <label>舞蹈风格（可选）</label>
+          <select v-model="danceStyle" class="form-select" :disabled="uploading">
+            <option value="">请选择风格</option>
+            <option value="breaking">Breaking (霹雳舞)</option>
+            <option value="popping">Popping (机械舞)</option>
+            <option value="locking">Locking (锁舞)</option>
+            <option value="hiphop">Hip-hop (嘻哈舞)</option>
+            <option value="jazz">Jazz (爵士舞)</option>
+            <option value="contemporary">Contemporary (现代舞)</option>
+            <option value="other">Other (其他)</option>
+          </select>
+        </div>
+        
+        <!-- 文件上传区域 -->
+        <div class="upload-area" @dragover.prevent @drop.prevent="handleDrop">
+          <input 
+            type="file" 
+            ref="fileInput" 
+            accept="video/*" 
+            @change="handleFileSelect"
+            class="file-input"
+            :disabled="uploading"
+          />
+          <div v-if="!selectedFile" class="upload-placeholder">
+            <div class="upload-icon">📹</div>
+            <p>拖拽视频文件到此处，或点击选择文件</p>
+            <p class="hint">支持 MP4, AVI, MOV, MKV, WebM 格式，最大 500MB</p>
+            <button @click="fileInput.click()" class="btn-select" :disabled="uploading">
+              选择文件
+            </button>
+          </div>
+          <div v-else class="file-info">
+            <div class="file-icon">🎬</div>
+            <div class="file-details">
+              <div class="file-name">{{ selectedFile.name }}</div>
+              <div class="file-size">{{ formatFileSize(selectedFile.size) }}</div>
+            </div>
+            <button @click="clearFile" class="btn-remove" :disabled="uploading">
+              ✕
+            </button>
+          </div>
+        </div>
+        
+        <!-- 上传进度 -->
+        <div v-if="uploading" class="upload-progress">
+          <div class="progress-bar">
+            <div class="progress-fill" :style="{ width: uploadProgress + '%' }"></div>
+          </div>
+          <div class="progress-text">{{ uploadProgress }}%</div>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div class="actions">
+          <button @click="handleUpload" :disabled="!canUpload || uploading" class="btn-primary">
+            {{ uploading ? '上传中...' : '开始上传' }}
+          </button>
+          <button @click="resetForm" :disabled="uploading" class="btn-secondary">
+            重置
+          </button>
+        </div>
+        
+        <!-- 上传结果 -->
+        <div v-if="uploadError" class="error-message">
+          {{ uploadError }}
+        </div>
+        
+        <div v-if="uploadedVideo" class="success-message">
+          <div class="success-icon">✓</div>
+          <p>上传成功！</p>
+          <div class="video-preview">
+            <video :src="videoUrl" controls class="video-player"></video>
+          </div>
+          <div class="success-actions">
+            <button @click="handleAnalyze" class="btn-analyze">
+              🤖 开始 AI 分析
+            </button>
+            <button @click="resetForm" class="btn-secondary">
+              继续上传
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 已上传视频列表 -->
+      <div class="videos-section">
+        <h2>我的视频</h2>
+        <div v-if="loadingVideos" class="loading">加载中...</div>
+        <div v-else-if="videos.length === 0" class="empty-state">
+          暂无上传的视频
+        </div>
+        <div v-else class="videos-grid">
+          <div v-for="video in videos" :key="video.id" class="video-card">
+            <div class="video-thumbnail">
+              <video :src="getVideoUrl(video.file_path)" preload="metadata"></video>
+            </div>
+            <div class="video-info">
+              <h3>{{ video.title }}</h3>
+              <p class="video-meta">
+                <span v-if="video.dance_style" class="dance-style">{{ video.dance_style }}</span>
+                <span class="upload-date">{{ formatDate(video.upload_date) }}</span>
+              </p>
+              <div class="video-actions">
+                <button @click="viewVideo(video)" class="btn-small">预览</button>
+                <button @click="analyzeVideo(video)" class="btn-small btn-analyze-small">AI 分析</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
   </div>
 </template>
 
 <script setup>
-// 视频上传页面 - 待实现
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { videoAPI, dancerAPI, analysisAPI } from '../api/modules'
+import { useUserStore } from '../stores/user'
+
+const router = useRouter()
+const userStore = useUserStore()
+
+// 用户菜单相关
+const showUserMenu = ref(false)
+const userMenuRef = ref(null)
+
+const toggleUserMenu = () => {
+  showUserMenu.value = !showUserMenu.value
+}
+
+const handleClickOutside = (event) => {
+  if (userMenuRef.value && !userMenuRef.value.contains(event.target)) {
+    showUserMenu.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+  loadDancers()
+  loadVideos()
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+// 表单数据
+const dancers = ref([])
+const selectedDancerId = ref('')
+const videoTitle = ref('')
+const danceStyle = ref('')
+const selectedFile = ref(null)
+const fileInput = ref(null)
+
+// 上传状态
+const uploading = ref(false)
+const uploadProgress = ref(0)
+const uploadError = ref('')
+const uploadedVideo = ref(null)
+
+// 视频列表
+const videos = ref([])
+const loadingVideos = ref(false)
+
+// 加载状态
+const loading = ref(false)
+
+// 计算属性
+const canUpload = computed(() => {
+  return selectedDancerId.value && videoTitle.value && selectedFile.value
+})
+
+const videoUrl = computed(() => {
+  if (uploadedVideo.value?.file_path) {
+    return getVideoUrl(uploadedVideo.value.file_path)
+  }
+  return ''
+})
+
+// 加载舞者列表
+const loadDancers = async () => {
+  try {
+    loading.value = true
+    const response = await dancerAPI.getDancers(userStore.userId, userStore.isAdmin)
+    dancers.value = response.dancers
+    
+    // 如果有舞者，自动选择第一个
+    if (dancers.value.length > 0 && !selectedDancerId.value) {
+      selectedDancerId.value = dancers.value[0].id
+    }
+  } catch (error) {
+    console.error('加载舞者列表失败:', error)
+    uploadError.value = '加载舞者列表失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+// 加载视频列表
+const loadVideos = async () => {
+  try {
+    loadingVideos.value = true
+    const response = await videoAPI.getVideos(userStore.userId)
+    videos.value = response.videos
+  } catch (error) {
+    console.error('加载视频列表失败:', error)
+  } finally {
+    loadingVideos.value = false
+  }
+}
+
+// 处理文件选择
+const handleFileSelect = (event) => {
+  const file = event.target.files[0]
+  if (file) {
+    validateAndSetFile(file)
+  }
+}
+
+// 处理拖放
+const handleDrop = (event) => {
+  const file = event.dataTransfer.files[0]
+  if (file) {
+    validateAndSetFile(file)
+  }
+}
+
+// 验证并设置文件
+const validateAndSetFile = (file) => {
+  // 检查文件类型
+  if (!file.type.startsWith('video/')) {
+    uploadError.value = '请选择视频文件'
+    return
+  }
+  
+  // 检查文件大小 (500MB)
+  const maxSize = 500 * 1024 * 1024
+  if (file.size > maxSize) {
+    uploadError.value = '文件大小不能超过 500MB'
+    return
+  }
+  
+  selectedFile.value = file
+  uploadError.value = ''
+}
+
+// 清除文件
+const clearFile = () => {
+  selectedFile.value = null
+  if (fileInput) {
+    fileInput.value = ''
+  }
+}
+
+// 格式化文件大小
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+}
+
+// 格式化日期
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('zh-CN')
+}
+
+// 获取视频 URL
+const getVideoUrl = (filePath) => {
+  if (!filePath) return ''
+  // 假设后端配置了静态文件服务
+  const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
+  return `${baseURL}${filePath}`
+}
+
+// 处理上传
+const handleUpload = async () => {
+  if (!canUpload.value) return
+  
+  uploading.value = true
+  uploadProgress.value = 0
+  uploadError.value = ''
+  uploadedVideo.value = null
+  
+  try {
+    const response = await videoAPI.uploadVideoFile(
+      selectedFile.value,
+      userStore.userId,
+      selectedDancerId.value,
+      videoTitle.value,
+      danceStyle.value
+    )
+    
+    uploadedVideo.value = response
+    uploadProgress.value = 100
+    
+    // 重新加载视频列表
+    await loadVideos()
+  } catch (error) {
+    console.error('上传失败:', error)
+    uploadError.value = error.response?.data?.error || '上传失败，请稍后重试'
+  } finally {
+    uploading.value = false
+  }
+}
+
+// 重置表单
+const resetForm = () => {
+  selectedDancerId.value = dancers.value.length > 0 ? dancers.value[0].id : ''
+  videoTitle.value = ''
+  danceStyle.value = ''
+  selectedFile.value = null
+  uploadError.value = ''
+  uploadedVideo.value = null
+  uploadProgress.value = 0
+  
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
+}
+
+// 开始 AI 分析
+const handleAnalyze = async () => {
+  if (!uploadedVideo.value) return
+  
+  try {
+    const result = await analysisAPI.analyzeVideo(uploadedVideo.value.video_id, userStore.userId)
+    alert('AI 分析完成！')
+    router.push(`/analysis/${uploadedVideo.value.video_id}`)
+  } catch (error) {
+    console.error('AI 分析失败:', error)
+    alert('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'))
+  }
+}
+
+// 查看视频
+const viewVideo = (video) => {
+  // 可以在这里打开一个模态框播放视频
+  const url = getVideoUrl(video.file_path)
+  window.open(url, '_blank')
+}
+
+// 分析视频
+const analyzeVideo = async (video) => {
+  try {
+    const result = await analysisAPI.analyzeVideo(video.id, userStore.userId)
+    alert('AI 分析完成！')
+    router.push(`/analysis/${video.id}`)
+  } catch (error) {
+    console.error('AI 分析失败:', error)
+    alert('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'))
+  }
+}
+
+const handleLogout = () => {
+  userStore.logout()
+  router.push('/login')
+}
 </script>
 
 <style scoped>
-.placeholder-view {
+.upload-container {
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
   background: #f5f7fa;
-  padding: 20px;
 }
 
-h1 {
-  font-size: 36px;
+.navbar {
+  background: white;
+  padding: 20px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.nav-brand {
+  font-size: 24px;
+  font-weight: bold;
+  color: #667eea;
+}
+
+.nav-links {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.nav-link {
   color: #333;
-  margin-bottom: 20px;
-  text-align: center;
-}
-
-p {
-  font-size: 18px;
-  color: #666;
-  margin-bottom: 30px;
-  text-align: center;
-}
-
-.btn-home {
-  padding: 12px 30px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
   text-decoration: none;
+  font-weight: 500;
+  padding: 8px 16px;
   border-radius: 6px;
-  font-weight: 600;
+  transition: background 0.3s;
+}
+
+.nav-link:hover {
+  background: #f0f0f0;
+}
+
+/* 用户头像下拉菜单样式 */
+.user-menu {
+  position: relative;
+}
+
+.avatar-btn {
+  cursor: pointer;
   transition: transform 0.2s;
 }
 
-.btn-home:hover {
+.avatar-btn:hover {
+  transform: scale(1.1);
+}
+
+.avatar-small {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  min-width: 220px;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.dropdown-header {
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.avatar-medium {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.user-info {
+  flex: 1;
+}
+
+.username {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.role-badge {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  display: inline-block;
+}
+
+.role-badge.admin {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.role-badge.user {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 8px 0;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  color: #333;
+  text-decoration: none;
+  transition: background 0.2s;
+  border: none;
+  background: none;
+  width: 100%;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.dropdown-item:hover {
+  background: #f5f7fa;
+}
+
+.dropdown-item.logout-btn {
+  color: #e74c3c;
+}
+
+.icon {
+  font-size: 18px;
+}
+
+.main-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.header {
+  margin-bottom: 30px;
+}
+
+.header h1 {
+  font-size: 32px;
+  color: #333;
+}
+
+.upload-section {
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  margin-bottom: 40px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #555;
+  font-weight: 500;
+}
+
+.form-select,
+.form-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.form-select:focus,
+.form-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.upload-area {
+  border: 2px dashed #ddd;
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  transition: border-color 0.3s;
+  margin: 30px 0;
+}
+
+.upload-area:hover {
+  border-color: #667eea;
+}
+
+.file-input {
+  display: none;
+}
+
+.upload-placeholder {
+  color: #666;
+}
+
+.upload-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+}
+
+.hint {
+  font-size: 13px;
+  color: #999;
+  margin-top: 10px;
+}
+
+.btn-select {
+  margin-top: 15px;
+  padding: 10px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-select:hover:not(:disabled) {
   transform: translateY(-2px);
+}
+
+.btn-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.file-icon {
+  font-size: 36px;
+}
+
+.file-details {
+  flex: 1;
+  text-align: left;
+}
+
+.file-name {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.file-size {
+  font-size: 13px;
+  color: #999;
+}
+
+.btn-remove {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  color: #666;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-remove:hover:not(:disabled) {
+  background: #e74c3c;
+  color: white;
+}
+
+.btn-remove:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.upload-progress {
+  margin: 20px 0;
+}
+
+.progress-bar {
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.3s;
+}
+
+.progress-text {
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+}
+
+.actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 30px;
+}
+
+.btn-primary {
+  padding: 12px 30px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  padding: 12px 30px;
+  background: #f0f0f0;
+  color: #333;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #e0e0e0;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  margin-top: 20px;
+  padding: 15px;
+  background: #fee;
+  color: #c33;
+  border-radius: 6px;
+  border-left: 4px solid #c33;
+}
+
+.success-message {
+  margin-top: 30px;
+  padding: 30px;
+  background: #efe;
+  border-radius: 12px;
+  text-align: center;
+  border-left: 4px solid #4a4;
+}
+
+.success-icon {
+  font-size: 48px;
+  color: #4a4;
+  margin-bottom: 15px;
+}
+
+.success-message p {
+  font-size: 18px;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.video-preview {
+  margin: 20px 0;
+}
+
+.video-player {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 8px;
+}
+
+.success-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.btn-analyze {
+  padding: 12px 30px;
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-analyze:hover {
+  transform: translateY(-2px);
+}
+
+.videos-section {
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.videos-section h2 {
+  font-size: 24px;
+  color: #333;
+  margin-bottom: 25px;
+}
+
+.loading,
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.videos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 25px;
+}
+
+.video-card {
+  background: #f9f9f9;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.video-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.video-thumbnail {
+  width: 100%;
+  height: 180px;
+  background: #000;
+}
+
+.video-thumbnail video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.video-info {
+  padding: 20px;
+}
+
+.video-info h3 {
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.video-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  font-size: 13px;
+  color: #666;
+}
+
+.dance-style {
+  background: #667eea;
+  color: white;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.video-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-small {
+  flex: 1;
+  padding: 8px;
+  background: #f0f0f0;
+  color: #333;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn-small:hover {
+  background: #e0e0e0;
+}
+
+.btn-analyze-small {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  color: white;
+}
+
+.btn-analyze-small:hover {
+  opacity: 0.9;
 }
 
 /* 移动端适配 */
 @media (max-width: 768px) {
-  h1 {
-    font-size: 28px;
+  .navbar {
+    padding: 15px 20px;
+    flex-direction: column;
+    gap: 15px;
   }
 
-  p {
-    font-size: 16px;
+  .nav-brand {
+    font-size: 20px;
   }
 
-  .btn-home {
-    padding: 10px 24px;
+  .main-content {
+    padding: 30px 15px;
+  }
+
+  .header h1 {
+    font-size: 26px;
+  }
+
+  .upload-section,
+  .videos-section {
+    padding: 25px 20px;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+  }
+
+  .success-actions {
+    flex-direction: column;
+  }
+
+  .videos-grid {
+    grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 480px) {
-  h1 {
-    font-size: 24px;
+  .navbar {
+    padding: 12px 15px;
   }
 
-  p {
+  .nav-brand {
+    font-size: 18px;
+  }
+
+  .nav-link {
+    padding: 6px 12px;
     font-size: 14px;
   }
 
-  .btn-home {
-    padding: 10px 20px;
-    font-size: 14px;
+  .main-content {
+    padding: 20px 10px;
+  }
+
+  .header h1 {
+    font-size: 22px;
+  }
+
+  .upload-section,
+  .videos-section {
+    padding: 20px 15px;
+  }
+
+  .upload-area {
+    padding: 25px 15px;
+  }
+
+  .file-info {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .file-details {
+    text-align: center;
   }
 }
 </style>
