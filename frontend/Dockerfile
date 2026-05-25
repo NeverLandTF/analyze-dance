@@ -14,7 +14,7 @@ RUN npm ci --only=production
 COPY . .
 
 # 构建应用
-RUN npm run build
+RUN npm install && npm run build
 
 # 暴露端口
 EXPOSE 80
