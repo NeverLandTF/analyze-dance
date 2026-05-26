@@ -102,8 +102,14 @@
               <button @click="openPreviewModal(video)" class="btn-small">
                 ▶ 预览
               </button>
-              <button @click="analyzeVideo(video)" class="btn-small btn-analyze-small">
-                🤖 AI 分析
+              <button 
+                @click="analyzeVideo(video)" 
+                class="btn-small btn-analyze-small"
+                :disabled="analyzingVideos[video.id]"
+              >
+                <span v-if="analyzingVideos[video.id]" class="loading-spinner">⏳</span>
+                <span v-else-if="hasAnalysis(video)">📊 查看</span>
+                <span v-else>🤖 AI 分析</span>
               </button>
               <button @click="viewAnalysisResult(video)" class="btn-small btn-view-small" v-if="hasAnalysis(video)">
                 📊 查看结果
@@ -148,8 +154,14 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button @click="analyzeCurrentVideo" class="btn-analyze">
-            🤖 开始 AI 分析
+          <button 
+            @click="analyzeCurrentVideo" 
+            class="btn-analyze"
+            :disabled="currentVideo && analyzingVideos[currentVideo.id]"
+          >
+            <span v-if="currentVideo && analyzingVideos[currentVideo.id]" class="loading-spinner">⏳</span>
+            <span v-else-if="currentVideo && hasAnalysis(currentVideo)">📊 查看最新分析</span>
+            <span v-else>🤖 开始 AI 分析</span>
           </button>
           <button @click="viewCurrentAnalysis" class="btn-secondary" v-if="hasAnalysis(currentVideo)">
             📊 查看分析结果
@@ -195,6 +207,8 @@ onUnmounted(() => {
 // 视频列表相关
 const videos = ref([])
 const loading = ref(false)
+// 记录每个视频的分析状态
+const analyzingVideos = reactive({})
 
 // 预览弹窗相关
 const showPreviewModal = ref(false)
@@ -280,14 +294,21 @@ const closePreviewModal = () => {
 
 // 分析视频
 const analyzeVideo = async (video) => {
+  // 设置该视频为分析中状态
+  analyzingVideos[video.id] = true
+  
   try {
     const result = await analysisAPI.analyzeVideo(video.id, userStore.userId)
-    alert('AI 分析完成！')
+    // 分析成功，移除分析中状态
+    delete analyzingVideos[video.id]
     // 重新加载视频列表以更新分析状态
     await loadVideos()
+    // 跳转到最新分析结果页面
     router.push(`/analysis/${video.id}`)
   } catch (error) {
     console.error('AI 分析失败:', error)
+    // 分析失败，移除分析中状态
+    delete analyzingVideos[video.id]
     alert('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'))
   }
 }
@@ -725,6 +746,21 @@ const handleLogout = () => {
   background: linear-gradient(135deg, #5568d3 0%, #6a4190 100%);
 }
 
+.btn-analyze-small:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.loading-spinner {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .btn-view-small {
   background: #e8f5e9;
   color: #2e7d32;
@@ -850,6 +886,12 @@ const handleLogout = () => {
 
 .btn-analyze:hover {
   transform: translateY(-2px);
+}
+
+.btn-analyze:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* 移动端适配 */
