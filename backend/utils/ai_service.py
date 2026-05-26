@@ -1,0 +1,243 @@
+"""
+AI 分析服务模块
+使用 OpenAI 兼容 API 对接阿里云 DashScope 大模型
+"""
+import os
+import requests
+from typing import Dict, Any, Optional
+from flask import current_app
+
+
+def get_ai_config(app=None):
+    """从应用配置或环境变量获取 AI 服务配置（与 file_utils 风格一致）"""
+    if app is not None:
+        # 优先从 Flask 应用配置获取
+        return {
+            'AI_API_BASE_URL': app.config.get(
+                'AI_API_BASE_URL',
+                os.environ.get('AI_API_BASE_URL', 'https://dashscope.aliyuncs.com/compatible-mode/v1')
+            ),
+            'AI_API_KEY': app.config.get(
+                'AI_API_KEY',
+                os.environ.get('AI_API_KEY', '')
+            ),
+            'AI_MODEL_NAME': app.config.get(
+                'AI_MODEL_NAME',
+                os.environ.get('AI_MODEL_NAME', 'qwen-plus')
+            )
+        }
+    
+    # 如果未传入 app，直接从环境变量获取
+    return {
+        'AI_API_BASE_URL': os.environ.get(
+            'AI_API_BASE_URL',
+            'https://dashscope.aliyuncs.com/compatible-mode/v1'
+        ),
+        'AI_API_KEY': os.environ.get('AI_API_KEY', ''),
+        'AI_MODEL_NAME': os.environ.get('AI_MODEL_NAME', 'qwen-plus')
+    }
+
+
+class AIAnalysisService:
+    """AI 分析服务类，封装与大模型的交互"""
+    
+    def __init__(self, config=None):
+        # 从配置字典或环境变量获取 API 设置
+        if config is None:
+            config = get_ai_config()
+        
+        self.api_base_url = config.get('AI_API_BASE_URL')
+        self.api_key = config.get('AI_API_KEY')
+        self.model_name = config.get('AI_MODEL_NAME')
+    
+    def analyze_video(self, video_description: str, dance_style: str = "") -> Dict[str, Any]:
+        """
+        分析舞蹈视频并返回结构化结果
+        
+        Args:
+            video_description: 视频描述或内容说明
+            dance_style: 舞蹈风格（如 breaking, popping, locking 等）
+            
+        Returns:
+            包含分析结果的字典
+        """
+        if not self.api_key:
+            raise ValueError("AI API Key 未配置，请设置 AI_API_KEY 环境变量")
+        
+        # 构建提示词
+        prompt = self._build_analysis_prompt(video_description, dance_style)
+        
+        # 调用大模型 API
+        response_data = self._call_llm_api(prompt)
+        
+        # 解析并结构化返回结果
+        return self._parse_analysis_result(response_data)
+    
+    def _build_analysis_prompt(self, video_description: str, dance_style: str) -> str:
+        """构建分析提示词"""
+        style_info = f"，舞蹈风格为 {dance_style}" if dance_style else ""
+        
+        prompt = f"""你是一位专业的舞蹈分析专家。请对以下舞蹈视频进行详细分析{style_info}。
+
+视频内容描述：{video_description}
+
+请从以下几个方面进行分析：
+1. 姿态检测 (pose_detection): 评估舞者的基本姿态、身体对齐情况
+2. 动作质量 (movement_quality): 包括节奏感、流畅度、力量控制、柔韧性等
+3. 技术要点：指出做得好的地方和需要改进的地方
+4. 综合评分：给出 0-100 的综合评分
+
+请以 JSON 格式返回分析结果，格式如下：
+{{
+    "pose_detection": {{
+        "confidence": 0.95,
+        "keypoints": ["头部稳定", "脊柱对齐良好", "四肢伸展充分"],
+        "issues": []
+    }},
+    "movement_quality": {{
+        "score": 85.5,
+        "rhythm": 88,
+        "flow": 82,
+        "power": 85,
+        "flexibility": 80,
+        "feedback": "具体的反馈意见"
+    }},
+    "technical_analysis": {{
+        "strengths": ["优点 1", "优点 2"],
+        "areas_to_improve": ["需要改进的方面 1", "需要改进的方面 2"]
+    }},
+    "overall_score": 85,
+    "summary": "综合评价总结"
+}}
+
+请确保返回有效的 JSON 格式，不要包含其他解释性文字。"""
+        
+        return prompt
+    
+    def _call_llm_api(self, prompt: str) -> str:
+        """
+        调用大模型 API
+        
+        Args:
+            prompt: 提示词
+            
+        Returns:
+            模型返回的文本内容
+        """
+        url = f"{self.api_base_url}/chat/completions"
+        
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            'model': self.model_name,
+            'messages': [
+                {
+                    'role': 'system',
+                    'content': '你是一位专业的舞蹈分析专家，擅长分析舞蹈动作、姿态和技术细节。'
+                },
+                {
+                    'role': 'user',
+                    'content': prompt
+                }
+            ],
+            'temperature': 0.7,
+            'max_tokens': 2000
+        }
+        
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=30)
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            if 'choices' in result and len(result['choices']) > 0:
+                return result['choices'][0]['message']['content']
+            else:
+                raise ValueError("API 响应格式异常")
+                
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"调用 AI API 失败：{str(e)}")
+    
+    def _parse_analysis_result(self, response_text: str) -> Dict[str, Any]:
+        """
+        解析模型返回的结果
+        
+        Args:
+            response_text: 模型返回的文本
+            
+        Returns:
+            结构化的分析结果字典
+        """
+        import json
+        import re
+        
+        # 尝试提取 JSON 内容（可能包含在代码块中）
+        json_match = re.search(r'```(?:json)?\s*({.*?})\s*```', response_text, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1)
+        else:
+            # 如果没有代码块标记，尝试直接解析整个响应
+            json_str = response_text.strip()
+        
+        try:
+            result = json.loads(json_str)
+            
+            # 确保返回格式符合预期
+            formatted_result = {
+                'pose_detection': result.get('pose_detection', {
+                    'confidence': 0.8,
+                    'keypoints': [],
+                    'issues': []
+                }),
+                'movement_quality': result.get('movement_quality', {
+                    'score': 75.0,
+                    'feedback': '请提供更多视频信息以便进行详细分析'
+                }),
+                'comparison_with_previous': {
+                    'improvement': 'N/A',
+                    'areas_to_focus': result.get('technical_analysis', {}).get('areas_to_improve', [])
+                },
+                'technical_analysis': result.get('technical_analysis', {
+                    'strengths': [],
+                    'areas_to_improve': []
+                }),
+                'overall_score': result.get('overall_score', 75),
+                'summary': result.get('summary', '')
+            }
+            
+            return formatted_result
+            
+        except json.JSONDecodeError as e:
+            # 如果解析失败，返回默认结果
+            return {
+                'pose_detection': {
+                    'confidence': 0.8,
+                    'keypoints': [],
+                    'issues': []
+                },
+                'movement_quality': {
+                    'score': 75.0,
+                    'feedback': f'分析结果解析失败：{str(e)}'
+                },
+                'comparison_with_previous': {
+                    'improvement': 'N/A',
+                    'areas_to_focus': []
+                },
+                'overall_score': 75,
+                'summary': response_text[:500]  # 返回原始响应的部分内容
+            }
+
+
+# 全局服务实例
+_ai_service_instance = None
+
+
+def get_ai_service() -> AIAnalysisService:
+    """获取 AI 分析服务单例实例"""
+    global _ai_service_instance
+    if _ai_service_instance is None:
+        _ai_service_instance = AIAnalysisService()
+    return _ai_service_instance

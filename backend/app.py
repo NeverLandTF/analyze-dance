@@ -8,7 +8,7 @@ from flask_migrate import Migrate
 import os
 
 from models import db
-from utils import get_upload_config, ensure_upload_directories
+from utils import get_upload_config, ensure_upload_directories, get_ai_config
 from routes import user_bp, video_bp, analysis_bp, progress_bp, file_bp
 
 
@@ -19,6 +19,9 @@ def create_app():
     
     # 获取上传配置
     upload_config = get_upload_config(app)
+    
+    # 获取 AI 分析配置
+    ai_config = get_ai_config(app)
     
     # 数据库配置 - 从环境变量获取
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'mysql+pymysql://username:password@localhost/dance_analysis_db')
@@ -32,6 +35,11 @@ def create_app():
     app.config['ALLOWED_EXTENSIONS'] = upload_config['ALLOWED_EXTENSIONS']
     app.config['ALLOWED_IMAGE_EXTENSIONS'] = upload_config['ALLOWED_IMAGE_EXTENSIONS']
     app.config['MAX_AVATAR_SIZE'] = upload_config['MAX_AVATAR_SIZE']
+    
+    # AI 分析配置
+    app.config['AI_API_BASE_URL'] = ai_config['AI_API_BASE_URL']
+    app.config['AI_API_KEY'] = ai_config['AI_API_KEY']
+    app.config['AI_MODEL_NAME'] = ai_config['AI_MODEL_NAME']
     
     # 确保上传目录及其子目录存在
     ensure_upload_directories(upload_config['UPLOAD_FOLDER'], upload_config['AVATAR_FOLDER'])
