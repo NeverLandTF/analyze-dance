@@ -1,54 +1,37 @@
 ```
-# Dependencies
-node_modules/
-
-# Build artifacts
-dist/
-build/
-*.min.js
-*.bundle.js
-
-# Environment
-.env
-.env.local
-*.env.*
-
-# Editors
-.vscode/
-.idea/
-
-# Logs
-*.log
-
-# Python (if any Python files exist in project)
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# Temporary files
-*.tmp
-*.swp
-*~
+# Dependencies
+venv/
+.venv/
+.env
+.env.local
+*.env.*
 
-# OS specific
+# Logs
+*.log
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.coverage
+htmlcov/
+.mypy_cache/
+.pytest_cache/
+
+# OS
 .DS_Store
 Thumbs.db
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# Testing
-.pytest_cache/
-.mypy_cache/
-
-# Compiled
-*.o
-*.obj
-*.a
-*.so
-*.dll
-*.exe
 ```
