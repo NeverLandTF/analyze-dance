@@ -138,6 +138,13 @@ const passwordForm = reactive({
 // 加载用户信息（包括头像）
 onMounted(async () => {
   try {
+    // 先检查 store 中是否有缓存的头像
+    const cachedAvatar = userStore.user?.avatar_url
+    if (cachedAvatar) {
+      userAvatar.value = cachedAvatar
+    }
+    
+    // 从后端获取最新的用户信息
     const response = await authAPI.getUser(userStore.userId)
     // 响应拦截器已返回 response.data，直接访问 avatar_url
     if (response && response.avatar_url) {
@@ -175,6 +182,8 @@ const handleAvatarChange = async (event) => {
     if (response && response.avatar_url) {
       const avatarUrl = response.avatar_url
       userAvatar.value = avatarUrl
+      // 更新 store 中的用户信息，包含头像
+      userStore.updateUser({ avatar_url: avatarUrl })
       alert('头像更新成功！')
     } else {
       alert('头像上传失败，请稍后重试')
