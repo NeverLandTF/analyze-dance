@@ -4,7 +4,7 @@ AI 分析服务模块
 """
 import os
 import requests
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 from flask import current_app
 
 
@@ -59,7 +59,11 @@ class AIAnalysisService:
             dance_style: 舞蹈风格（如 breaking, popping, locking 等）
             
         Returns:
-            包含分析结果的字典
+            包含分析结果的字典，格式为：
+            {
+                'analysis': {...},  # 分析结果
+                'usage': {...}      # token 使用量信息
+            }
         """
         if not self.api_key:
             raise ValueError("AI API Key 未配置，请设置 AI_API_KEY 环境变量")
@@ -68,10 +72,16 @@ class AIAnalysisService:
         prompt = self._build_analysis_prompt(video_description, dance_style)
         
         # 调用大模型 API
-        response_data = self._call_llm_api(prompt)
+        response_data, usage_info = self._call_llm_api(prompt)
         
         # 解析并结构化返回结果
-        return self._parse_analysis_result(response_data)
+        analysis_result = self._parse_analysis_result(response_data)
+        
+        # 返回分析结果和 token 使用量
+        return {
+            'analysis': analysis_result,
+            'usage': usage_info
+        }
     
     def _build_analysis_prompt(self, video_description: str, dance_style: str) -> str:
         """构建分析提示词"""
@@ -114,7 +124,7 @@ class AIAnalysisService:
         
         return prompt
     
-    def _call_llm_api(self, prompt: str) -> str:
+    def _call_llm_api(self, prompt: str) -> Tuple[str, Dict[str, Any]]:
         """
         调用大模型 API
         
@@ -122,7 +132,7 @@ class AIAnalysisService:
             prompt: 提示词
             
         Returns:
-            模型返回的文本内容
+            (模型返回的文本内容，token 使用量信息)
         """
         url = f"{self.api_base_url}/chat/completions"
         
@@ -131,8 +141,9 @@ class AIAnalysisService:
             'Content-Type': 'application/json'
         }
         
+        # 使用实际配置的模型名称，而非固定值
         payload = {
-            'model': self.model_name,
+            'model': self.model_name,  # 使用真实配置值
             'messages': [
                 {
                     'role': 'system',
@@ -153,8 +164,18 @@ class AIAnalysisService:
             
             result = response.json()
             
+            # 提取 token 使用量信息
+            usage_info = {}
+            if 'usage' in result:
+                usage_info = {
+                    'prompt_tokens': result['usage'].get('prompt_tokens', 0),
+                    'completion_tokens': result['usage'].get('completion_tokens', 0),
+                    'total_tokens': result['usage'].get('total_tokens', 0),
+                    'model': self.model_name
+                }
+            
             if 'choices' in result and len(result['choices']) > 0:
-                return result['choices'][0]['message']['content']
+                return result['choices'][0]['message']['content'], usage_info
             else:
                 raise ValueError("API 响应格式异常")
                 
@@ -225,6 +246,10 @@ class AIAnalysisService:
                 'comparison_with_previous': {
                     'improvement': 'N/A',
                     'areas_to_focus': []
+                },
+                'technical_analysis': {
+                    'strengths': [],
+                    'areas_to_improve': []
                 },
                 'overall_score': 75,
                 'summary': response_text[:500]  # 返回原始响应的部分内容
