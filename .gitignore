@@ -1,33 +1,54 @@
 ```
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+build/
+*.min.js
+*.bundle.js
 
 # Environment
 .env
 .env.local
 *.env.*
 
-# Logs
-*.log
-
-# Temporary files
-*.tmp
-*.swp
-
 # Editors
 .vscode/
 .idea/
 
-# Dependencies
-venv/
-.venv/
-node_modules/
+# Logs
+*.log
 
-# Build artifacts
-dist/
-build/
-target/
+# Python (if any Python files exist in project)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Temporary files
+*.tmp
+*.swp
+*~
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+
+# Compiled
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.exe
 ```

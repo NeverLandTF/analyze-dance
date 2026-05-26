@@ -11,14 +11,26 @@
         <!-- 用户头像下拉菜单 -->
         <div class="user-menu" ref="userMenuRef">
           <div class="avatar-btn" @click="toggleUserMenu">
-            <div class="avatar-small">
+            <img 
+              v-if="userStore.user?.avatar_url" 
+              :src="userStore.user.avatar_url" 
+              alt="avatar"
+              class="avatar-small-img"
+            />
+            <div v-else class="avatar-small">
               {{ userStore.user?.username?.charAt(0).toUpperCase() }}
             </div>
           </div>
           
           <div v-if="showUserMenu" class="dropdown-menu">
             <div class="dropdown-header">
-              <div class="avatar-medium">
+              <img 
+                v-if="userStore.user?.avatar_url" 
+                :src="userStore.user.avatar_url" 
+                alt="avatar"
+                class="avatar-medium-img"
+              />
+              <div v-else class="avatar-medium">
                 {{ userStore.user?.username?.charAt(0).toUpperCase() }}
               </div>
               <div class="user-info">
@@ -183,6 +195,14 @@ const handleLogout = () => {
   transform: scale(1.1);
 }
 
+.avatar-small-img,
+.avatar-medium-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .avatar-small {
   width: 40px;
   height: 40px;
@@ -227,6 +247,13 @@ const handleLogout = () => {
   justify-content: center;
   font-size: 24px;
   font-weight: bold;
+}
+
+.avatar-medium-img {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .user-info {
