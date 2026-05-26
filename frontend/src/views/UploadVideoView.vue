@@ -161,16 +161,53 @@
           <p>上传成功！共上传 {{ uploadedVideo.length }} 个视频</p>
           <div class="video-list">
             <div v-for="(video, index) in uploadedVideo" :key="index" class="video-item">
-              <div class="video-preview">
-                <video :src="getVideoUrl(video.file_path)" controls class="video-player"></video>
+              <div class="video-thumbnail-wrapper">
+                <!-- 缩略图 - 使用后端返回的封面图 -->
+                <div class="video-thumbnail" @click="openPreview(video)">
+                  <img 
+                    v-if="video.thumbnail_url" 
+                    :src="getThumbnailUrl(video.thumbnail_url)" 
+                    alt="视频封面"
+                    class="thumbnail-image"
+                  />
+                  <div v-else class="thumbnail-placeholder">
+                    <span class="play-icon">▶</span>
+                  </div>
+                  <div class="thumbnail-overlay">
+                    <span class="preview-text">点击预览</span>
+                  </div>
+                </div>
               </div>
               <div class="video-info">
                 <h4>{{ video.title }}</h4>
                 <p>文件大小：{{ formatFileSize(selectedFiles[index]?.size || 0) }}</p>
               </div>
-              <button @click="handleAnalyzeSingle(video)" class="btn-analyze-small">
-                🤖 AI 分析
-              </button>
+              <div class="video-actions">
+                <button @click="openPreview(video)" class="btn-preview-small">
+                  👁️ 预览
+                </button>
+                <button 
+                  v-if="analyzingVideoIds.has(video.video_id)" 
+                  disabled 
+                  class="btn-analyze-small btn-loading"
+                >
+                  ⏳ 分析中...
+                </button>
+                <button 
+                  v-else-if="video.analysis_status === 'completed'" 
+                  @click="router.push(`/analysis/${video.video_id}`)" 
+                  class="btn-view-analysis"
+                >
+                  📊 点击查看分析
+                </button>
+                <button 
+                  v-else 
+                  @click="handleAnalyzeSingle(video)" 
+                  class="btn-analyze-small"
+                >
+                  🤖 AI 分析
+                </button>
+              </div>
             </div>
           </div>
           <div class="success-actions">
@@ -184,16 +221,105 @@
         <div v-else-if="uploadedVideo && !Array.isArray(uploadedVideo)" class="success-message">
           <div class="success-icon">✓</div>
           <p>上传成功！</p>
-          <div class="video-preview">
-            <video :src="videoUrl" controls class="video-player"></video>
+          <div class="video-thumbnail-wrapper-single">
+            <div class="video-thumbnail" @click="openPreview(uploadedVideo)">
+              <img 
+                v-if="uploadedVideo.thumbnail_url" 
+                :src="getThumbnailUrl(uploadedVideo.thumbnail_url)" 
+                alt="视频封面"
+                class="thumbnail-image-single"
+              />
+              <div v-else class="thumbnail-placeholder-single">
+                <span class="play-icon">▶</span>
+              </div>
+              <div class="thumbnail-overlay">
+                <span class="preview-text">点击预览</span>
+              </div>
+            </div>
           </div>
           <div class="success-actions">
-            <button @click="handleAnalyze" class="btn-analyze">
+            <button @click="openPreview(uploadedVideo)" class="btn-preview">
+              👁️ 预览视频
+            </button>
+            <button 
+              v-if="analyzingVideoIds.has(uploadedVideo.video_id)" 
+              disabled 
+              class="btn-analyze btn-loading"
+            >
+              ⏳ 分析中...
+            </button>
+            <button 
+              v-else-if="uploadedVideo.analysis_status === 'completed'" 
+              @click="router.push(`/analysis/${uploadedVideo.video_id}`)" 
+              class="btn-view-analysis"
+            >
+              📊 点击查看分析
+            </button>
+            <button 
+              v-else 
+              @click="handleAnalyze" 
+              class="btn-analyze"
+            >
               🤖 开始 AI 分析
             </button>
             <button @click="resetForm" class="btn-secondary">
               继续上传
             </button>
+          </div>
+        </div>
+        
+        <!-- 视频预览弹窗 -->
+        <div v-if="showPreview" class="modal-overlay" @click.self="closePreview">
+          <div class="preview-modal" @click.stop>
+            <div class="modal-header">
+              <h2>{{ currentPreviewVideo?.title || '视频预览' }}</h2>
+              <button @click="closePreview" class="btn-close">×</button>
+            </div>
+            <div class="modal-body">
+              <video 
+                ref="videoPlayer"
+                :src="getVideoUrl(currentPreviewVideo?.file_path)" 
+                controls 
+                autoplay
+                class="video-player-full"
+              ></video>
+              <div class="video-details">
+                <div class="detail-item">
+                  <span class="label">舞蹈风格：</span>
+                  <span class="value">{{ getDanceStyleName(currentPreviewVideo?.dance_style) || '未指定' }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="label">上传时间：</span>
+                  <span class="value">{{ formatDateTime(new Date()) }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button 
+                v-if="analyzingVideoIds.has(currentPreviewVideo?.video_id)" 
+                disabled 
+                class="btn-analyze btn-loading"
+              >
+                ⏳ 分析中...
+              </button>
+              <button 
+                v-else-if="currentPreviewVideo?.analysis_status === 'completed'" 
+                @click="router.push(`/analysis/${currentPreviewVideo.video_id}`)" 
+                class="btn-view-analysis"
+              >
+                📊 点击查看分析
+              </button>
+              <button 
+                v-else 
+                @click="analyzeCurrentPreviewVideo" 
+                class="btn-analyze"
+              >
+                🤖 开始 AI 分析
+              </button>
+              <button @click="closePreview" class="btn-secondary">
+                关闭
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -247,8 +373,15 @@ const fileProgressMap = ref({}) // 存储每个文件的上传进度
 const uploadError = ref('')
 const uploadedVideo = ref(null)
 
+// 预览相关
+const showPreview = ref(false)
+const currentPreviewVideo = ref(null)
+
 // 加载状态
 const loading = ref(false)
+
+// 分析状态 - 存储正在分析的视频 ID 集合
+const analyzingVideoIds = ref(new Set())
 
 // 计算属性
 const canUpload = computed(() => {
@@ -258,13 +391,6 @@ const canUpload = computed(() => {
   }
   // 管理员需要选择舞者、标题和文件
   return selectedDancerId.value && videoTitle.value && selectedFiles.value.length > 0
-})
-
-const videoUrl = computed(() => {
-  if (uploadedVideo.value?.file_path) {
-    return getVideoUrl(uploadedVideo.value.file_path)
-  }
-  return ''
 })
 
 // 加载用户列表（用于选择舞者）
@@ -462,13 +588,18 @@ const clearFileSelection = () => {
 const handleAnalyzeSingle = async (video) => {
   if (!video) return
   
+  // 将视频 ID 添加到分析中集合
+  analyzingVideoIds.value.add(video.video_id)
+  
   try {
     const result = await analysisAPI.analyzeVideo(video.video_id, userStore.userId)
-    alert('AI 分析完成！')
-    router.push(`/analysis/${video.video_id}`)
+    // 不再显示 alert，移除分析状态并更新按钮文字
   } catch (error) {
     console.error('AI 分析失败:', error)
     alert('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'))
+  } finally {
+    // 无论成功失败都移除分析状态
+    analyzingVideoIds.value.delete(video.video_id)
   }
 }
 
@@ -480,15 +611,86 @@ const handleAnalyze = async () => {
   const video = Array.isArray(uploadedVideo.value) ? uploadedVideo.value[0] : uploadedVideo.value
   if (!video) return
   
+  // 将视频 ID 添加到分析中集合
+  analyzingVideoIds.value.add(video.video_id)
+  
   try {
     const result = await analysisAPI.analyzeVideo(video.video_id, userStore.userId)
-    alert('AI 分析完成！')
-    router.push(`/analysis/${video.video_id}`)
+    // 不再显示 alert，移除分析状态并更新按钮文字
   } catch (error) {
     console.error('AI 分析失败:', error)
     alert('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'))
+  } finally {
+    // 无论成功失败都移除分析状态
+    analyzingVideoIds.value.delete(video.video_id)
   }
 }
+
+// 打开预览弹窗
+const openPreview = (video) => {
+  currentPreviewVideo.value = video
+  showPreview.value = true
+}
+
+// 关闭预览弹窗
+const closePreview = () => {
+  showPreview.value = false
+  // 停止视频播放
+  if (videoPlayer.value) {
+    videoPlayer.value.pause()
+    videoPlayer.value.currentTime = 0
+  }
+  currentPreviewVideo.value = null
+}
+
+// 分析当前预览的视频（从弹窗中）
+const analyzeCurrentPreviewVideo = async () => {
+  if (!currentPreviewVideo.value) return
+  
+  // 将视频 ID 添加到分析中集合
+  analyzingVideoIds.value.add(currentPreviewVideo.value.video_id)
+  
+  try {
+    const result = await analysisAPI.analyzeVideo(currentPreviewVideo.value.video_id, userStore.userId)
+    // 不再显示 alert，移除分析状态并更新按钮文字
+  } catch (error) {
+    console.error('AI 分析失败:', error)
+    alert('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'))
+  } finally {
+    // 无论成功失败都移除分析状态
+    analyzingVideoIds.value.delete(currentPreviewVideo.value.video_id)
+  }
+}
+
+// 获取封面图 URL
+const getThumbnailUrl = (thumbnailPath) => {
+  if (!thumbnailPath) return ''
+  const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
+  return `${baseURL}${thumbnailPath}`
+}
+
+// 格式化日期时间
+const formatDateTime = (date) => {
+  if (!date) return ''
+  return date.toLocaleString('zh-CN')
+}
+
+// 获取舞蹈风格名称
+const getDanceStyleName = (style) => {
+  const styleMap = {
+    'breaking': '霹雳舞',
+    'popping': '机械舞',
+    'locking': '锁舞',
+    'hiphop': '嘻哈舞',
+    'jazz': '爵士舞',
+    'contemporary': '现代舞',
+    'other': '其他'
+  }
+  return styleMap[style] || style
+}
+
+// 视频播放器引用
+const videoPlayer = ref(null)
 
 const handleLogout = () => {
   userStore.logout()
@@ -1019,6 +1221,34 @@ const handleLogout = () => {
   transform: translateY(-2px);
 }
 
+/* 分析中按钮样式 */
+.btn-loading {
+  background: linear-gradient(135deg, #95a5a6 0%, #bdc3c7 100%);
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.btn-loading:hover {
+  transform: none;
+}
+
+/* 点击查看分析按钮样式 */
+.btn-view-analysis {
+  padding: 12px 30px;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-view-analysis:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+}
+
 /* 移动端适配 */
 @media (max-width: 768px) {
   .navbar {
@@ -1115,15 +1345,74 @@ const handleLogout = () => {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
 }
 
-.video-item .video-preview {
+.video-thumbnail-wrapper {
   flex-shrink: 0;
 }
 
-.video-item .video-player {
+.video-thumbnail {
+  position: relative;
   width: 320px;
   height: 180px;
   border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
   background: #000;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.video-thumbnail:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.thumbnail-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.thumbnail-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.video-thumbnail:hover .thumbnail-overlay {
+  opacity: 1;
+}
+
+.preview-text {
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  background: rgba(102, 126, 234, 0.9);
+  padding: 10px 20px;
+  border-radius: 20px;
+}
+
+.play-icon {
+  font-size: 48px;
+  color: white;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 .video-info {
@@ -1142,8 +1431,30 @@ const handleLogout = () => {
   font-size: 14px;
 }
 
-.btn-analyze-small {
+.video-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   flex-shrink: 0;
+}
+
+.btn-preview-small {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-preview-small:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+}
+
+.btn-analyze-small {
   padding: 10px 20px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -1159,20 +1470,216 @@ const handleLogout = () => {
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
+/* 小按钮的加载状态 */
+.btn-analyze-small.btn-loading {
+  background: linear-gradient(135deg, #95a5a6 0%, #bdc3c7 100%);
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.btn-analyze-small.btn-loading:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* 单视频缩略图样式 */
+.video-thumbnail-wrapper-single {
+  margin: 20px 0;
+  display: flex;
+  justify-content: center;
+}
+
+.video-thumbnail-wrapper-single .video-thumbnail {
+  width: 640px;
+  height: 360px;
+}
+
+.thumbnail-image-single {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.thumbnail-placeholder-single {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.btn-preview {
+  padding: 12px 30px;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-preview:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+}
+
+/* 预览弹窗样式 - 与我的视频页面保持一致 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.preview-modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: hidden;
+  animation: slideUp 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.btn-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  border: none;
+  font-size: 24px;
+  color: #666;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.btn-close:hover {
+  background: #e0e0e0;
+}
+
+.modal-body {
+  padding: 20px;
+  background: #000;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.video-player-full {
+  width: 100%;
+  max-height: 70vh;
+  display: block;
+}
+
+.video-details {
+  padding: 15px 0;
+  color: #fff;
+}
+
+.detail-item {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.detail-item .label {
+  color: #aaa;
+}
+
+.detail-item .value {
+  color: #fff;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  padding: 15px 20px;
+  border-top: 1px solid #eee;
+  background: #f9f9f9;
+}
+
 @media (max-width: 768px) {
   .video-item {
     flex-direction: column;
     text-align: center;
   }
   
-  .video-item .video-player {
+  .video-thumbnail {
     width: 100%;
     height: auto;
     aspect-ratio: 16/9;
   }
   
+  .video-actions {
+    width: 100%;
+    flex-direction: row;
+    justify-content: center;
+  }
+  
+  .btn-preview-small,
   .btn-analyze-small {
     width: 100%;
+  }
+  
+  .video-thumbnail-wrapper-single .video-thumbnail {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16/9;
+  }
+  
+  .preview-content {
+    max-width: 95vw;
   }
 }
 </style>
