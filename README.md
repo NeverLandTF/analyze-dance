@@ -11,6 +11,8 @@
 - 🎯 **单个人标识**：为每位舞者分配唯一 ID，实现精准的个人数据追踪
 - 🔒 **全数据隔离**：多用户系统，确保不同用户的数据完全隔离和安全
 - 📹 **视频上传分析**：支持上传舞蹈视频，AI 自动分析动作质量
+- 🖼️ **封面预览**：视频列表仅加载封面图，提升页面性能
+- 🎬 **弹窗预览**：点击视频即可在弹窗中预览，无需打开新标签页
 - 📊 **进步追踪**：可视化展示舞者的进步曲线和技能发展
 - 🤖 **AI 智能分析**：集成大模型能力，提供专业的舞蹈动作评估
 - 👥 **用户管理**：完整的注册、登录和用户认证系统
@@ -150,6 +152,7 @@ analyze-dance/
 │   │   │   ├── LoginView.vue
 │   │   │   ├── RegisterView.vue
 │   │   │   ├── HomeView.vue
+│   │   │   ├── MyVideosView.vue        # 我的视频页面（新增）
 │   │   │   ├── DancerListView.vue
 │   │   │   ├── DancerDetailView.vue
 │   │   │   ├── UploadVideoView.vue
@@ -163,6 +166,19 @@ analyze-dance/
 │
 ├── backend/                  # Python Flask 后端
 │   ├── app.py               # Flask 主应用
+│   ├── routes/              # 路由模块（按功能拆分）
+│   │   ├── __init__.py
+│   │   ├── users.py         # 用户认证和管理 API
+│   │   ├── videos.py        # 视频管理 API
+│   │   ├── analysis.py      # AI 分析 API
+│   │   ├── progress.py      # 进步追踪 API
+│   │   └── files.py         # 文件服务 API
+│   ├── models/              # 数据模型
+│   │   └── __init__.py      # 所有数据库模型
+│   ├── utils/               # 工具函数
+│   │   ├── __init__.py
+│   │   ├── auth.py          # JWT 认证工具
+│   │   └── file_utils.py    # 文件上传辅助功能
 │   ├── requirements.txt     # Python 依赖
 │   ├── Dockerfile           # Docker 配置
 │   └── venv/                # Python 虚拟环境
@@ -189,9 +205,11 @@ analyze-dance/
 - `DELETE /api/dancers/<id>` - 删除舞者
 
 ### 视频管理
-- `GET /api/videos` - 获取视频列表
-- `POST /api/videos` - 上传视频
-- `GET /api/videos/<id>` - 获取视频详情
+- `GET /api/videos` - 获取视频列表（仅返回基本信息和封面）
+- `GET /api/videos/summary` - 获取视频摘要（性能更优，仅封面和基本信息）
+- `POST /api/videos/upload` - 上传视频文件
+- `POST /api/videos` - 上传视频（元数据方式）
+- `GET /api/videos/<id>` - 获取视频详情（包含分析结果）
 - `DELETE /api/videos/<id>` - 删除视频
 
 ### AI 分析
@@ -229,7 +247,7 @@ analyze-dance/
 
 ### 添加新功能
 
-1. 后端：在 `backend/app.py` 中添加新的路由和模型
+1. 后端：在对应的路由模块中添加新的 API 端点
 2. 前端：在 `frontend/src/views/` 中创建新页面组件
 3. API：在 `frontend/src/api/` 中添加新的 API 调用函数
 4. 路由：在 `frontend/src/router/` 中配置新路由
@@ -254,6 +272,11 @@ analyze-dance/
 - 清理 Docker 缓存：`docker system prune`
 - 检查 Docker 版本是否兼容
 - 确保网络畅通可以拉取镜像
+
+### 视频列表加载慢
+- 现在视频列表仅加载封面图和基本信息，不加载视频内容
+- 如需获取完整视频信息，请调用 `/api/videos/<id>` 接口
+- 使用 `/api/videos/summary` 接口可获得更优的性能
 
 ## 贡献指南
 
@@ -282,3 +305,6 @@ analyze-dance/
 - [ ] 添加批量视频处理功能
 - [ ] 支持多种舞蹈风格分析
 - [ ] 移动端适配
+- [x] 视频列表仅加载封面（已完成）
+- [x] 视频预览弹窗（已完成）
+- [x] 后端代码模块化拆分（已完成）

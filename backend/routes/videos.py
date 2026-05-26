@@ -1,0 +1,238 @@
+"""
+视频相关路由模块
+处理视频上传、查询等 API 端点
+"""
+from flask import Blueprint, request, jsonify, current_app
+from werkzeug.utils import secure_filename
+import uuid
+import os
+
+from models import db, Video, Dancer
+from utils.auth import token_required
+from utils.file_utils import allowed_file
+
+video_bp = Blueprint('videos', __name__, url_prefix='/api')
+
+
+@video_bp.route('/videos/upload', methods=['POST'])
+@token_required
+def upload_video_file():
+    """上传视频文件（需要 JWT 认证）"""
+    # 从 token 中获取当前用户信息
+    current_user = request.current_user
+    
+    # 检查是否有文件部分
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    allowed_extensions = current_app.config.get('ALLOWED_EXTENSIONS', ['mp4', 'avi', 'mov', 'mkv', 'webm'])
+    if not allowed_file(file.filename, allowed_extensions):
+        return jsonify({'error': 'File type not allowed'}), 400
+    
+    # 获取表单数据（user_id 和 dancer_id 现在可以从 token 中获取，但为了兼容性仍支持表单传递）
+    user_id = request.form.get('user_id') or current_user.get('user_id')
+    dancer_id = request.form.get('dancer_id')
+    if dancer_id:
+        dancer_id = int(dancer_id)  # 转换为整数
+    title = request.form.get('title')
+    dance_style = request.form.get('dance_style', '')
+    
+    if not title:
+        return jsonify({'error': 'Missing required field (title)'}), 400
+    
+    # 如果没有提供 dancer_id，尝试获取用户的默认舞者（即 user_id 对应的第一个舞者）
+    if not dancer_id:
+        default_dancer = Dancer.query.filter_by(user_id=int(user_id)).first()
+        if default_dancer:
+            dancer_id = default_dancer.id
+        else:
+            return jsonify({'error': 'No dancer found for this user. Please create a dancer profile first.'}), 400
+    
+    # 权限验证：普通用户只能给自己上传视频，管理员可以给任何人上传
+    if not current_user.get('is_admin', False) and int(user_id) != current_user.get('user_id'):
+        return jsonify({'error': 'Permission denied. You can only upload videos for yourself.'}), 403
+    
+    # 生成唯一的文件名
+    original_filename = secure_filename(file.filename)
+    ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else 'mp4'
+    unique_filename = f"{uuid.uuid4().hex}.{ext}"
+    
+    # 保存到 videos 子目录
+    video_subfolder = os.environ.get('VIDEO_SUBFOLDER', 'videos')
+    upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+    file_path = os.path.join(upload_folder, video_subfolder, unique_filename)
+    file.save(file_path)
+    
+    # 创建视频记录
+    video = Video(
+        user_id=int(user_id),
+        dancer_id=dancer_id,  # dancer_id 已经是整数了
+        title=title,
+        file_path=f'/uploads/{video_subfolder}/{unique_filename}',
+        thumbnail_url=None,
+        duration=None,
+        dance_style=dance_style
+    )
+    
+    db.session.add(video)
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Video uploaded successfully',
+        'video_id': video.id,
+        'file_path': video.file_path
+    }), 201
+
+
+@video_bp.route('/videos', methods=['POST'])
+@token_required
+def upload_video():
+    """上传视频（元数据方式，用于兼容旧接口）"""
+    current_user = request.current_user
+    data = request.get_json()
+    
+    if not data or not data.get('dancer_id') or not data.get('title'):
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    # 从 token 中获取 user_id，除非是管理员可以指定其他用户
+    user_id = data.get('user_id')
+    if not user_id:
+        user_id = current_user.get('user_id')
+    else:
+        # 如果不是管理员，只能给自己上传视频
+        if not current_user.get('is_admin', False) and int(user_id) != current_user.get('user_id'):
+            return jsonify({'error': 'Permission denied. You can only upload videos for yourself.'}), 403
+    
+    video = Video(
+        user_id=user_id,
+        dancer_id=data['dancer_id'],
+        title=data['title'],
+        file_path=data['file_path'],
+        thumbnail_url=data.get('thumbnail_url'),
+        duration=data.get('duration'),
+        dance_style=data.get('dance_style')
+    )
+    
+    db.session.add(video)
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Video uploaded successfully',
+        'video_id': video.id
+    }), 201
+
+
+@video_bp.route('/videos', methods=['GET'])
+@token_required
+def get_videos():
+    """获取视频列表（需要 JWT 认证）- 仅返回基本信息和封面"""
+    current_user = request.current_user
+    
+    # 从 query 参数或 token 中获取 user_id
+    user_id = request.args.get('user_id') or current_user.get('user_id')
+    dancer_id = request.args.get('dancer_id')
+    
+    if not user_id:
+        return jsonify({'error': 'user_id is required'}), 400
+    
+    # 权限验证：普通用户只能查看自己的视频，管理员可以查看所有视频
+    if not current_user.get('is_admin', False) and int(user_id) != current_user.get('user_id'):
+        return jsonify({'error': 'Permission denied. You can only view your own videos.'}), 403
+    
+    query = Video.query.filter_by(user_id=int(user_id))
+    
+    if dancer_id:
+        query = query.filter_by(dancer_id=int(dancer_id))
+    
+    videos = query.order_by(Video.upload_date.desc()).all()
+    
+    # 仅返回基本信息（封面、标题等），不加载视频内容
+    return jsonify({
+        'videos': [{
+            'id': v.id,
+            'title': v.title,
+            'file_path': v.file_path,
+            'thumbnail_url': v.thumbnail_url,
+            'duration': v.duration,
+            'upload_date': v.upload_date.isoformat() if v.upload_date else None,
+            'dance_style': v.dance_style,
+            'dancer_id': v.dancer_id
+            # 注意：不返回 analyses，以减少数据传输
+        } for v in videos]
+    })
+
+
+@video_bp.route('/videos/summary', methods=['GET'])
+@token_required
+def get_videos_summary():
+    """获取视频列表摘要（仅封面和基本信息，性能更优）"""
+    current_user = request.current_user
+    
+    # 从 query 参数或 token 中获取 user_id
+    user_id = request.args.get('user_id') or current_user.get('user_id')
+    
+    if not user_id:
+        return jsonify({'error': 'user_id is required'}), 400
+    
+    # 权限验证
+    if not current_user.get('is_admin', False) and int(user_id) != current_user.get('user_id'):
+        return jsonify({'error': 'Permission denied'}), 403
+    
+    # 使用更高效的方式查询，只选择需要的字段
+    videos = db.session.query(
+        Video.id,
+        Video.title,
+        Video.thumbnail_url,
+        Video.duration,
+        Video.upload_date,
+        Video.dance_style,
+        Video.dancer_id
+    ).filter_by(user_id=int(user_id)).order_by(Video.upload_date.desc()).all()
+    
+    return jsonify({
+        'videos': [{
+            'id': v.id,
+            'title': v.title,
+            'thumbnail_url': v.thumbnail_url,
+            'duration': v.duration,
+            'upload_date': v.upload_date.isoformat() if v.upload_date else None,
+            'dance_style': v.dance_style,
+            'dancer_id': v.dancer_id
+        } for v in videos]
+    })
+
+
+@video_bp.route('/videos/<int:video_id>', methods=['GET'])
+@token_required
+def get_video(video_id):
+    """获取单个视频详情（需要 JWT 认证）"""
+    current_user = request.current_user
+    
+    video = Video.query.get_or_404(video_id)
+    
+    # 权限验证：普通用户只能查看自己的视频，管理员可以查看所有视频
+    if not current_user.get('is_admin', False) and video.user_id != current_user.get('user_id'):
+        return jsonify({'error': 'Permission denied. You can only view your own videos.'}), 403
+    
+    return jsonify({
+        'id': video.id,
+        'title': video.title,
+        'file_path': video.file_path,
+        'thumbnail_url': video.thumbnail_url,
+        'duration': video.duration,
+        'upload_date': video.upload_date.isoformat() if video.upload_date else None,
+        'dance_style': video.dance_style,
+        'dancer_id': video.dancer_id,
+        'analyses': [{
+            'id': a.id,
+            'analysis_type': a.analysis_type,
+            'result_data': a.result_data,
+            'confidence_score': a.confidence_score,
+            'processed_at': a.processed_at.isoformat() if a.processed_at else None
+        } for a in video.analyses]
+    })

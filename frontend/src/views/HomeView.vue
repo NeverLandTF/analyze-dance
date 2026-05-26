@@ -6,6 +6,7 @@
         <span v-if="userStore.isAdmin" class="admin-badge-nav">管理员</span>
         <router-link to="/" class="nav-link">首页</router-link>
         <router-link v-if="userStore.isAdmin" to="/dancers" class="nav-link">用户管理</router-link>
+        <router-link to="/my-videos" class="nav-link">我的视频</router-link>
         <router-link to="/upload" class="nav-link">上传视频</router-link>
         
         <!-- 用户头像下拉菜单 -->
@@ -73,10 +74,16 @@
           <p>管理员可以创建和管理用户，每个用户即代表一个舞者</p>
         </div>
         
-        <div class="feature-card" @click="$router.push('/upload')">
+        <div class="feature-card" @click="$router.push('/my-videos')">
           <div class="feature-icon">📹</div>
+          <h3>我的视频</h3>
+          <p>查看和管理已上传的舞蹈视频，支持预览和 AI 分析</p>
+        </div>
+        
+        <div class="feature-card" @click="$router.push('/upload')">
+          <div class="feature-icon">⬆️</div>
           <h3>视频上传</h3>
-          <p>上传舞蹈视频，支持多种街舞风格</p>
+          <p>上传新的舞蹈视频，支持多种街舞风格</p>
         </div>
         
         <div class="feature-card">
