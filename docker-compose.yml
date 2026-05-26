@@ -33,12 +33,23 @@ services:
     environment:
       FLASK_APP: app.py
       FLASK_ENV: production
+      FLASK_DEBUG: ${FLASK_DEBUG:-false}
+      FLASK_HOST: ${FLASK_HOST:-0.0.0.0}
+      FLASK_PORT: ${FLASK_PORT:-5000}
       DATABASE_URL: mysql+pymysql://${MYSQL_USER:-dance_user}:${MYSQL_PASSWORD:-dance_password}@db:3306/${MYSQL_DATABASE:-dance_analysis}
       MYSQL_HOST: db
       MYSQL_PORT: 3306
       MYSQL_USER: ${MYSQL_USER:-dance_user}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-dance_password}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-dance_analysis}
+      # 文件上传配置
+      UPLOAD_FOLDER: /app/uploads
+      VIDEO_SUBFOLDER: ${VIDEO_SUBFOLDER:-videos}
+      ALLOWED_EXTENSIONS: ${ALLOWED_EXTENSIONS:-mp4,avi,mov,mkv,webm}
+      ALLOWED_IMAGE_EXTENSIONS: ${ALLOWED_IMAGE_EXTENSIONS:-jpg,jpeg,png,gif,bmp,webp}
+      MAX_CONTENT_LENGTH: ${MAX_CONTENT_LENGTH:-524288000}
+      MAX_AVATAR_SIZE: ${MAX_AVATAR_SIZE:-5242880}
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-here}
     ports:
       - "5000:5000"
     depends_on:

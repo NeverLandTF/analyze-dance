@@ -16,21 +16,23 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'mysql+py
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 
-# 文件上传配置
-UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
-AVATAR_FOLDER = os.path.join(os.path.dirname(__file__), 'avatars')
-ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv', 'webm'}
-ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'}
-MAX_CONTENT_LENGTH = 500 * 1024 * 1024  # 500MB 最大文件大小
-MAX_AVATAR_SIZE = 5 * 1024 * 1024  # 5MB 最大头像大小
+# 文件上传配置 - 从环境变量获取
+UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'uploads')
+AVATAR_FOLDER = os.path.join(UPLOAD_FOLDER, 'avatars')  # 头像放在 uploads/avatars 子目录下
+ALLOWED_EXTENSIONS = os.environ.get('ALLOWED_EXTENSIONS', 'mp4,avi,mov,mkv,webm').split(',')
+ALLOWED_IMAGE_EXTENSIONS = os.environ.get('ALLOWED_IMAGE_EXTENSIONS', 'jpg,jpeg,png,gif,bmp,webp').split(',')
+MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 500 * 1024 * 1024))  # 默认 500MB
+MAX_AVATAR_SIZE = int(os.environ.get('MAX_AVATAR_SIZE', 5 * 1024 * 1024))  # 默认 5MB
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['AVATAR_FOLDER'] = AVATAR_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
-# 确保上传目录存在
+# 确保上传目录及其子目录存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(AVATAR_FOLDER, exist_ok=True)
+os.makedirs(os.path.join(UPLOAD_FOLDER, 'videos'), exist_ok=True)  # 视频子目录
+os.makedirs(os.path.join(UPLOAD_FOLDER, 'images'), exist_ok=True)  # 图片子目录
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
@@ -38,12 +40,12 @@ migrate = Migrate(app, db)
 
 def allowed_file(filename):
     """检查文件扩展名是否允许（视频）"""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in [ext.strip() for ext in ALLOWED_EXTENSIONS]
 
 
 def allowed_image(filename):
     """检查文件扩展名是否允许（图片）"""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in [ext.strip() for ext in ALLOWED_IMAGE_EXTENSIONS]
 
 
 # ==================== 数据模型 ====================
@@ -470,8 +472,9 @@ def upload_video_file():
     ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else 'mp4'
     unique_filename = f"{uuid.uuid4().hex}.{ext}"
     
-    # 保存文件
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+    # 保存到 videos 子目录
+    video_subfolder = os.environ.get('VIDEO_SUBFOLDER', 'videos')
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], video_subfolder, unique_filename)
     file.save(file_path)
     
     # 创建视频记录
@@ -479,7 +482,7 @@ def upload_video_file():
         user_id=int(user_id),
         dancer_id=int(dancer_id),
         title=title,
-        file_path=f'/uploads/{unique_filename}',
+        file_path=f'/uploads/{video_subfolder}/{unique_filename}',
         thumbnail_url=None,
         duration=None,
         dance_style=dance_style
@@ -760,7 +763,9 @@ if __name__ == '__main__':
     # 开发环境下可以运行此脚本
     import os
     debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    host = os.environ.get('FLASK_HOST', '0.0.0.0')
+    port = int(os.environ.get('FLASK_PORT', 5000))
     if debug_mode:
-        app.run(debug=True, host='0.0.0.0', port=5000)
+        app.run(debug=True, host=host, port=port)
     else:
         print('Production mode: Use Gunicorn to start the application')
