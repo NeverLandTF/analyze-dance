@@ -76,7 +76,7 @@ export const dancerAPI = {
 
 export const videoAPI = {
   // 上传视频文件
-  uploadVideoFile(file, userId, dancerId, title, danceStyle = '') {
+  uploadVideoFile(file, userId, dancerId, title, danceStyle = '', onProgress = null) {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('user_id', userId)
@@ -95,7 +95,9 @@ export const videoAPI = {
       },
       onUploadProgress: (progressEvent) => {
         const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-        console.log(`Upload progress: ${percentCompleted}%`)
+        if (onProgress) {
+          onProgress(percentCompleted)
+        }
       }
     })
   },

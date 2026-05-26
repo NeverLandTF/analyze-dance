@@ -1,94 +1,38 @@
-# Compiled and build artifacts
-*.pyc
+```gitignore
+# Python cache
 __pycache__/
-*.o
-*.obj
-*.so
-*.dll
-*.exe
-*.class
-*.out
+*.pyc
+*.pyo
+*.pyd
 
 # Dependencies
-.venv/
 venv/
-env/
-node_modules/
-dist/
-build/
-target/
-.gradle/
-.mypy_cache/
-.pytest_cache/
-
-# Logs and temp files
-*.log
-*.tmp
-*.swp
-*.swo
-*.bak
-*.~
-*~
-
-# Environment and system files
+.venv/
 .env
 .env.local
 *.env.*
-.DS_Store
-Thumbs.db
-*.swp
-*.swo
 
-# Editors
+# Logs
+*.log
+
+# Editor/IDE
 .vscode/
 .idea/
-*.sublime-project
-*.sublime-workspace
-nbproject/
+*.swp
+*.swo
+*.tmp
 
-# Coverage reports
+# Build/dist
+dist/
+build/
+target/
+
+# Coverage
+.coverage
 coverage/
 htmlcov/
-.coverage
 
-# Python specific
-*.pyc
-__pycache__/
-*.pyo
-*.pyd
-.Python
-*.so
-*.egg-info/
-MANIFEST
-.pytest_cache/
-.hypothesis/
-*.pot
-*.pot~
-*.mo
-*.gmo
-.tox/
-.coverage.*
-
-# Compressed files
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
+# OS
+.DS_Store
+Thumbs.db
+```
