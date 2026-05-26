@@ -139,8 +139,9 @@ const passwordForm = reactive({
 onMounted(async () => {
   try {
     const response = await authAPI.getUser(userStore.userId)
-    if (response.data && response.data.avatar_url) {
-      userAvatar.value = response.data.avatar_url
+    // 响应拦截器已返回 response.data，直接访问 avatar_url
+    if (response && response.avatar_url) {
+      userAvatar.value = response.avatar_url
     }
   } catch (error) {
     console.error('获取用户信息失败:', error)
@@ -170,8 +171,9 @@ const handleAvatarChange = async (event) => {
     // 上传头像到后端服务器
     const response = await authAPI.uploadAvatarFile(userStore.userId, file)
     
-    if (response.data && response.data.avatar_url) {
-      const avatarUrl = response.data.avatar_url
+    // 响应拦截器已返回 response.data，直接访问 avatar_url
+    if (response && response.avatar_url) {
+      const avatarUrl = response.avatar_url
       userAvatar.value = avatarUrl
       alert('头像更新成功！')
     } else {
@@ -179,7 +181,7 @@ const handleAvatarChange = async (event) => {
     }
   } catch (error) {
     console.error('上传头像失败:', error)
-    alert('头像上传失败：' + (error.response?.data?.error || '请稍后重试'))
+    alert('头像上传失败：' + (error.response?.data?.error || error.message || '请稍后重试'))
   } finally {
     isUploading.value = false
     // 清空 input，允许重复选择同一文件
