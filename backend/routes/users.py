@@ -351,8 +351,9 @@ def get_dancer(dancer_id):
 @admin_required
 def delete_user(user_id):
     """删除用户 - 仅管理员可访问，删除时清理所有关联数据和文件"""
+    from flask import current_app
+    
     current_user = request.current_user
-    app = request.app
     
     # 防止删除自己
     if user_id == current_user.get('user_id'):
@@ -361,7 +362,7 @@ def delete_user(user_id):
     user = User.query.get_or_404(user_id)
     
     # 获取用户上传目录配置
-    upload_folder = app.config.get('UPLOAD_FOLDER', 'uploads')
+    upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
     
     try:
         # 1. 收集并删除该用户的所有视频文件
