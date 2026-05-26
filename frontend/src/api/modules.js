@@ -39,20 +39,38 @@ export const authAPI = {
   }
 }
 
+export const userAPI = {
+  // 获取所有用户（仅管理员）
+  getUsers(userId, isAdmin = false) {
+    return api.get(`/users?user_id=${userId}&is_admin=${isAdmin}`)
+  },
+  
+  // 创建用户（仅管理员）
+  createUser(userData) {
+    return api.post('/users', userData)
+  },
+  
+  // 获取用户详情
+  getUser(userId) {
+    return api.get(`/users/${userId}`)
+  }
+}
+
+// 向后兼容的 dancerAPI，已废弃，请使用 userAPI
 export const dancerAPI = {
-  // 获取所有舞者
+  // 获取所有用户（仅管理员，已废弃，请使用 userAPI.getUsers）
   getDancers(userId, isAdmin = false) {
-    return api.get(`/dancers?user_id=${userId}&is_admin=${isAdmin}`)
+    return userAPI.getUsers(userId, isAdmin)
   },
   
-  // 创建舞者
+  // 创建用户（已废弃，请使用 userAPI.createUser）
   createDancer(userData) {
-    return api.post('/dancers', userData)
+    return userAPI.createUser(userData)
   },
   
-  // 获取舞者详情
+  // 获取用户详情（已废弃，请使用 userAPI.getUser）
   getDancer(dancerId) {
-    return api.get(`/dancers/${dancerId}`)
+    return userAPI.getUser(dancerId)
   }
 }
 

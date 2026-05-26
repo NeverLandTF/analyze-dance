@@ -4,6 +4,8 @@
       <div class="nav-brand">🎵 舞蹈 AI 分析</div>
       <div class="nav-links">
         <router-link to="/" class="nav-link">首页</router-link>
+        <router-link v-if="userStore.isAdmin" to="/dancers" class="nav-link">用户管理</router-link>
+        <router-link to="/upload" class="nav-link">上传视频</router-link>
         
         <!-- 用户头像下拉菜单 -->
         <div class="user-menu" ref="userMenuRef">
@@ -46,61 +48,91 @@
     </nav>
     
     <main class="main-content">
-      <div class="header">
-        <h1>舞者管理</h1>
-        <div class="header-actions">
-          <span v-if="userStore.isAdmin" class="admin-badge">管理员</span>
-          <button v-if="userStore.isAdmin" @click="showCreateModal = true" class="btn-primary">+ 创建新舞者</button>
-        </div>
+      <div v-if="!userStore.isAdmin" class="access-denied">
+        <h1>无权访问</h1>
+        <p>普通用户无法查看用户管理页面，每个用户即代表一个舞者。</p>
+        <button @click="$router.push('/upload')" class="btn-primary">去上传视频</button>
       </div>
       
-      <div v-if="loading" class="loading">加载中...</div>
-      
-      <div v-else-if="dancers.length === 0" class="empty-state">
-        <p v-if="userStore.isAdmin">暂无舞者，点击上方按钮创建第一个舞者</p>
-        <p v-else>您已拥有个人舞者档案，可以直接上传视频进行分析</p>
-      </div>
-      
-      <div v-else class="dancers-grid">
-        <div 
-          v-for="dancer in dancers" 
-          :key="dancer.id" 
-          class="dancer-card"
-          @click="$router.push(`/dancers/${dancer.id}`)"
-        >
-          <div class="dancer-avatar">
-            {{ dancer.name.charAt(0).toUpperCase() }}
+      <div v-else>
+        <div class="header">
+          <h1>用户管理</h1>
+          <div class="header-actions">
+            <span class="admin-badge">管理员</span>
+            <button @click="showCreateModal = true" class="btn-primary">+ 创建新用户</button>
           </div>
-          <h3>{{ dancer.name }}</h3>
-          <p class="description">{{ dancer.description || '暂无描述' }}</p>
-          <div class="stats">
-            <span>视频数：{{ dancer.video_count }}</span>
-            <span v-if="dancer.owner_username && !userStore.isAdmin" class="owner-info">所有者：{{ dancer.owner_username }}</span>
+        </div>
+        
+        <div v-if="loading" class="loading">加载中...</div>
+        
+        <div v-else-if="users.length === 0" class="empty-state">
+          <p>暂无用户，点击上方按钮创建第一个用户</p>
+        </div>
+        
+        <div v-else class="users-grid">
+          <div 
+            v-for="user in users" 
+            :key="user.id" 
+            class="user-card"
+            @click="$router.push(`/dancers/${user.id}`)"
+          >
+            <div class="user-avatar">
+              {{ user.username.charAt(0).toUpperCase() }}
+            </div>
+            <h3>{{ user.username }}</h3>
+            <p class="email">{{ user.email }}</p>
+            <div class="role-badge" :class="user.is_admin ? 'admin' : 'user'">
+              {{ user.is_admin ? '管理员' : '普通用户' }}
+            </div>
+            <div class="stats">
+              <span>视频数：{{ user.video_count }}</span>
+              <span>注册时间：{{ new Date(user.created_at).toLocaleDateString() }}</span>
+            </div>
           </div>
         </div>
       </div>
     </main>
     
-    <!-- 创建舞者模态框 -->
+    <!-- 创建用户模态框 -->
     <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
       <div class="modal">
-        <h2>创建新舞者</h2>
+        <h2>创建新用户</h2>
         <form @submit.prevent="handleCreate">
           <div class="form-group">
-            <label>舞者名称</label>
+            <label>用户名 *</label>
             <input 
               type="text" 
-              v-model="newDancer.name" 
+              v-model="newUser.username" 
               required 
-              placeholder="输入舞者名称"
+              placeholder="输入用户名"
+            />
+          </div>
+          
+          <div class="form-group">
+            <label>邮箱 *</label>
+            <input 
+              type="email" 
+              v-model="newUser.email" 
+              required 
+              placeholder="输入邮箱地址"
+            />
+          </div>
+          
+          <div class="form-group">
+            <label>密码 *</label>
+            <input 
+              type="password" 
+              v-model="newUser.password" 
+              required 
+              placeholder="输入初始密码"
             />
           </div>
           
           <div class="form-group">
             <label>描述</label>
             <textarea 
-              v-model="newDancer.description" 
-              placeholder="可选：舞者的简介或风格"
+              v-model="newUser.description" 
+              placeholder="可选：用户的简介或风格"
               rows="3"
             ></textarea>
           </div>
@@ -120,13 +152,13 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { dancerAPI } from '../api/modules'
+import { userAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
 const userStore = useUserStore()
 
-const dancers = ref([])
+const users = ref([])
 const loading = ref(true)
 const showCreateModal = ref(false)
 const creating = ref(false)
@@ -148,27 +180,35 @@ const handleClickOutside = (event) => {
 
 onMounted(async () => {
   document.addEventListener('click', handleClickOutside)
-  await loadDancers()
+  await loadUsers()
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
 
-const loadDancers = async () => {
+const loadUsers = async () => {
+  // 普通用户直接返回，不加载数据
+  if (!userStore.isAdmin) {
+    loading.value = false
+    return
+  }
+  
   try {
-    // 管理员不需要传 user_id，可以查看所有舞者
-    const response = await dancerAPI.getDancers(userStore.userId, userStore.isAdmin)
-    dancers.value = response.dancers
+    // 只有管理员才能加载用户列表
+    const response = await userAPI.getUsers(userStore.userId, userStore.isAdmin)
+    users.value = response.users
   } catch (error) {
-    console.error('加载舞者列表失败:', error)
+    console.error('加载用户列表失败:', error)
   } finally {
     loading.value = false
   }
 }
 
-const newDancer = reactive({
-  name: '',
+const newUser = reactive({
+  username: '',
+  email: '',
+  password: '',
   description: ''
 })
 
@@ -176,18 +216,22 @@ const handleCreate = async () => {
   creating.value = true
   
   try {
-    // 管理员创建舞者时，可以选择分配给任何用户（这里简化为分配给自己或创建公共舞者）
-    await dancerAPI.createDancer({
-      user_id: userStore.userId,
-      name: newDancer.name,
-      description: newDancer.description
+    // 管理员创建用户
+    await userAPI.createUser({
+      admin_user_id: userStore.userId,
+      username: newUser.username,
+      email: newUser.email,
+      password: newUser.password,
+      description: newUser.description
     })
     
     showCreateModal.value = false
-    newDancer.name = ''
-    newDancer.description = ''
+    newUser.username = ''
+    newUser.email = ''
+    newUser.password = ''
+    newUser.description = ''
     
-    await loadDancers()
+    await loadUsers()
   } catch (error) {
     alert('创建失败：' + (error.response?.data?.error || '请稍后重试'))
   } finally {
@@ -205,6 +249,26 @@ const handleLogout = () => {
 .dancer-list-container {
   min-height: 100vh;
   background: #f5f7fa;
+}
+
+.access-denied {
+  text-align: center;
+  padding: 80px 20px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.access-denied h1 {
+  font-size: 36px;
+  color: #e74c3c;
+  margin-bottom: 20px;
+}
+
+.access-denied p {
+  font-size: 18px;
+  color: #666;
+  margin-bottom: 30px;
+  line-height: 1.6;
 }
 
 .navbar {
@@ -416,13 +480,13 @@ const handleLogout = () => {
   font-size: 18px;
 }
 
-.dancers-grid {
+.users-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 25px;
 }
 
-.dancer-card {
+.user-card {
   background: white;
   padding: 30px;
   border-radius: 12px;
@@ -431,12 +495,12 @@ const handleLogout = () => {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
 }
 
-.dancer-card:hover {
+.user-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
-.dancer-avatar {
+.user-avatar {
   width: 60px;
   height: 60px;
   border-radius: 50%;
@@ -450,17 +514,35 @@ const handleLogout = () => {
   margin-bottom: 15px;
 }
 
-.dancer-card h3 {
+.user-card h3 {
   font-size: 20px;
   color: #333;
   margin-bottom: 10px;
 }
 
-.description {
+.email {
   color: #666;
   font-size: 14px;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
   line-height: 1.5;
+}
+
+.role-badge {
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  display: inline-block;
+  margin-bottom: 10px;
+}
+
+.role-badge.admin {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.role-badge.user {
+  background: #f0f0f0;
+  color: #666;
 }
 
 .stats {
@@ -469,11 +551,6 @@ const handleLogout = () => {
   display: flex;
   flex-direction: column;
   gap: 5px;
-}
-
-.owner-info {
-  color: #667eea;
-  font-size: 12px;
 }
 
 .modal-overlay {
@@ -580,12 +657,12 @@ const handleLogout = () => {
     justify-content: center;
   }
 
-  .dancers-grid {
+  .users-grid {
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 20px;
   }
 
-  .dancer-card {
+  .user-card {
     padding: 25px;
   }
 
@@ -616,26 +693,26 @@ const handleLogout = () => {
     font-size: 22px;
   }
 
-  .dancers-grid {
+  .users-grid {
     grid-template-columns: 1fr;
     gap: 15px;
   }
 
-  .dancer-card {
+  .user-card {
     padding: 20px;
   }
 
-  .dancer-avatar {
+  .user-avatar {
     width: 50px;
     height: 50px;
     font-size: 24px;
   }
 
-  .dancer-card h3 {
+  .user-card h3 {
     font-size: 18px;
   }
 
-  .description {
+  .email {
     font-size: 13px;
   }
 

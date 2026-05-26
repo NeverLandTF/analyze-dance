@@ -4,7 +4,7 @@
       <div class="nav-brand">🎵 舞蹈 AI 分析</div>
       <div class="nav-links">
         <router-link to="/" class="nav-link">首页</router-link>
-        <router-link to="/dancers" class="nav-link">舞者管理</router-link>
+        <router-link v-if="userStore.isAdmin" to="/dancers" class="nav-link">用户管理</router-link>
         
         <!-- 用户头像下拉菜单 -->
         <div class="user-menu" ref="userMenuRef">
@@ -54,11 +54,11 @@
       <div class="upload-section">
         <!-- 选择舞者 -->
         <div class="form-group">
-          <label>选择舞者</label>
+          <label>选择舞者（用户）</label>
           <select v-model="selectedDancerId" class="form-select" :disabled="loading || uploading">
-            <option value="">请选择舞者</option>
-            <option v-for="dancer in dancers" :key="dancer.id" :value="dancer.id">
-              {{ dancer.name }}
+            <option value="">请选择用户</option>
+            <option v-for="user in users" :key="user.id" :value="user.id">
+              {{ user.username }}
             </option>
           </select>
         </div>
@@ -193,7 +193,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { videoAPI, dancerAPI, analysisAPI } from '../api/modules'
+import { videoAPI, userAPI, analysisAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
@@ -215,7 +215,7 @@ const handleClickOutside = (event) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
-  loadDancers()
+  loadUsers()
   loadVideos()
 })
 
@@ -224,7 +224,7 @@ onUnmounted(() => {
 })
 
 // 表单数据
-const dancers = ref([])
+const users = ref([])
 const selectedDancerId = ref('')
 const videoTitle = ref('')
 const danceStyle = ref('')
@@ -256,20 +256,26 @@ const videoUrl = computed(() => {
   return ''
 })
 
-// 加载舞者列表
-const loadDancers = async () => {
+// 加载用户列表（用于选择舞者）
+const loadUsers = async () => {
   try {
     loading.value = true
-    const response = await dancerAPI.getDancers(userStore.userId, userStore.isAdmin)
-    dancers.value = response.dancers
+    // 普通用户只能看到自己，管理员可以看到所有用户
+    const response = await userAPI.getUsers(userStore.userId, userStore.isAdmin)
+    // 过滤出当前用户或所有用户（根据角色）
+    if (userStore.isAdmin) {
+      users.value = response.users
+    } else {
+      users.value = response.users.filter(u => u.id === userStore.userId)
+    }
     
-    // 如果有舞者，自动选择第一个
-    if (dancers.value.length > 0 && !selectedDancerId.value) {
-      selectedDancerId.value = dancers.value[0].id
+    // 如果有用户，自动选择第一个（即自己）
+    if (users.value.length > 0 && !selectedDancerId.value) {
+      selectedDancerId.value = users.value[0].id
     }
   } catch (error) {
-    console.error('加载舞者列表失败:', error)
-    uploadError.value = '加载舞者列表失败'
+    console.error('加载用户列表失败:', error)
+    uploadError.value = '加载用户列表失败'
   } finally {
     loading.value = false
   }
@@ -388,7 +394,7 @@ const handleUpload = async () => {
 
 // 重置表单
 const resetForm = () => {
-  selectedDancerId.value = dancers.value.length > 0 ? dancers.value[0].id : ''
+  selectedDancerId.value = users.value.length > 0 ? users.value[0].id : ''
   videoTitle.value = ''
   danceStyle.value = ''
   selectedFile.value = null
