@@ -18,17 +18,22 @@ depends_on = None
 
 def upgrade():
     # ### 为 users 表添加中文注释 ###
+    # 注意：主键列必须保持 NOT NULL
     op.alter_column('users', 'id',
                existing_type=sa.Integer(),
+               existing_nullable=False,
                comment='用户 ID')
     op.alter_column('users', 'username',
                existing_type=sa.String(length=80),
+               existing_nullable=False,
                comment='用户名')
     op.alter_column('users', 'email',
                existing_type=sa.String(length=120),
+               existing_nullable=False,
                comment='邮箱地址')
     op.alter_column('users', 'password_hash',
                existing_type=sa.String(length=256),
+               existing_nullable=False,
                comment='密码哈希值')
     op.alter_column('users', 'avatar_url',
                existing_type=sa.String(length=255),
@@ -43,12 +48,15 @@ def upgrade():
     # ### 为 dancers 表添加中文注释 ###
     op.alter_column('dancers', 'id',
                existing_type=sa.Integer(),
+               existing_nullable=False,
                comment='舞者 ID')
     op.alter_column('dancers', 'user_id',
                existing_type=sa.Integer(),
+               existing_nullable=False,
                comment='所属用户 ID')
     op.alter_column('dancers', 'name',
                existing_type=sa.String(length=100),
+               existing_nullable=False,
                comment='舞者名称')
     op.alter_column('dancers', 'description',
                existing_type=sa.Text(),
@@ -66,18 +74,23 @@ def upgrade():
     # ### 为 videos 表添加中文注释 ###
     op.alter_column('videos', 'id',
                existing_type=sa.Integer(),
+               existing_nullable=False,
                comment='视频 ID')
     op.alter_column('videos', 'user_id',
                existing_type=sa.Integer(),
+               existing_nullable=False,
                comment='所属用户 ID')
     op.alter_column('videos', 'dancer_id',
                existing_type=sa.Integer(),
+               existing_nullable=False,
                comment='舞者 ID')
     op.alter_column('videos', 'title',
                existing_type=sa.String(length=200),
+               existing_nullable=False,
                comment='视频标题')
     op.alter_column('videos', 'file_path',
                existing_type=sa.String(length=500),
+               existing_nullable=False,
                comment='文件存储路径')
     op.alter_column('videos', 'thumbnail_url',
                existing_type=sa.String(length=255),
@@ -95,15 +108,19 @@ def upgrade():
     # ### 为 analyses 表添加中文注释 ###
     op.alter_column('analyses', 'id',
                existing_type=sa.Integer(),
+               existing_nullable=False,
                comment='分析记录 ID')
     op.alter_column('analyses', 'user_id',
                existing_type=sa.Integer(),
+               existing_nullable=False,
                comment='所属用户 ID')
     op.alter_column('analyses', 'video_id',
                existing_type=sa.Integer(),
+               existing_nullable=False,
                comment='关联视频 ID')
     op.alter_column('analyses', 'analysis_type',
                existing_type=sa.String(length=50),
+               existing_nullable=False,
                comment='分析类型：pose_detection, movement_tracking, score_evaluation')
     op.alter_column('analyses', 'result_data',
                existing_type=sa.JSON(),
@@ -121,15 +138,19 @@ def upgrade():
     # ### 为 progress_records 表添加中文注释 ###
     op.alter_column('progress_records', 'id',
                existing_type=sa.Integer(),
+               existing_nullable=False,
                comment='进步记录 ID')
     op.alter_column('progress_records', 'dancer_id',
                existing_type=sa.Integer(),
+               existing_nullable=False,
                comment='舞者 ID')
     op.alter_column('progress_records', 'skill_category',
                existing_type=sa.String(length=100),
+               existing_nullable=False,
                comment='技能类别：rhythm, technique, creativity 等')
     op.alter_column('progress_records', 'score',
                existing_type=sa.Float(),
+               existing_nullable=False,
                comment='得分')
     op.alter_column('progress_records', 'improvement_rate',
                existing_type=sa.Float(),
