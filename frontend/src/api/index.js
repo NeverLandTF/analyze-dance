@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const api = axios.create({
   baseURL: '/api',
-  timeout: 30000,
+  timeout: 600000, // 10 分钟，支持大文件上传
   headers: {
     'Content-Type': 'application/json'
   }
