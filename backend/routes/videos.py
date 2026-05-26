@@ -97,7 +97,11 @@ def upload_video_file():
     return jsonify({
         'message': 'Video uploaded successfully',
         'video_id': video.id,
-        'file_path': video.file_path
+        'file_path': video.file_path,
+        'thumbnail_url': video.thumbnail_url,
+        'duration': video.duration,
+        'title': video.title,
+        'dance_style': video.dance_style
     }), 201
 
 

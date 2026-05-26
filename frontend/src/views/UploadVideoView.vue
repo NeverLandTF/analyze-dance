@@ -187,7 +187,7 @@
                   👁️ 预览
                 </button>
                 <button 
-                  v-if="analyzingVideoIds.has(video.video_id)" 
+                  v-if="analyzingVideoIds.has(video.id)" 
                   disabled 
                   class="btn-analyze-small btn-loading"
                 >
@@ -195,7 +195,7 @@
                 </button>
                 <button 
                   v-else-if="video.analysis_status === 'completed'" 
-                  @click="router.push(`/analysis/${video.video_id}`)" 
+                  @click="router.push(`/analysis/${video.id}`)" 
                   class="btn-view-analysis"
                 >
                   📊 点击查看分析
@@ -242,7 +242,7 @@
               👁️ 预览视频
             </button>
             <button 
-              v-if="analyzingVideoIds.has(uploadedVideo.video_id)" 
+              v-if="analyzingVideoIds.has(uploadedVideo.id)" 
               disabled 
               class="btn-analyze btn-loading"
             >
@@ -250,7 +250,7 @@
             </button>
             <button 
               v-else-if="uploadedVideo.analysis_status === 'completed'" 
-              @click="router.push(`/analysis/${uploadedVideo.video_id}`)" 
+              @click="router.push(`/analysis/${uploadedVideo.id}`)" 
               class="btn-view-analysis"
             >
               📊 点击查看分析
@@ -296,7 +296,7 @@
             </div>
             <div class="modal-footer">
               <button 
-                v-if="analyzingVideoIds.has(currentPreviewVideo?.video_id)" 
+                v-if="analyzingVideoIds.has(currentPreviewVideo?.id)" 
                 disabled 
                 class="btn-analyze btn-loading"
               >
@@ -304,7 +304,7 @@
               </button>
               <button 
                 v-else-if="currentPreviewVideo?.analysis_status === 'completed'" 
-                @click="router.push(`/analysis/${currentPreviewVideo.video_id}`)" 
+                @click="router.push(`/analysis/${currentPreviewVideo.id}`)" 
                 class="btn-view-analysis"
               >
                 📊 点击查看分析
@@ -546,7 +546,8 @@ const handleUpload = async () => {
     
     const results = await Promise.all(uploadPromises)
     
-    uploadedVideo.value = results // 保存所有上传成功的视频
+    // 上传接口已返回 thumbnail_url 等详细信息，直接使用
+    uploadedVideo.value = results
     
     // 不再加载视频列表，因为已删除该部分 UI
   } catch (error) {
@@ -589,17 +590,18 @@ const handleAnalyzeSingle = async (video) => {
   if (!video) return
   
   // 将视频 ID 添加到分析中集合
-  analyzingVideoIds.value.add(video.video_id)
+  analyzingVideoIds.value.add(video.id)
   
   try {
-    const result = await analysisAPI.analyzeVideo(video.video_id, userStore.userId)
-    // 不再显示 alert，移除分析状态并更新按钮文字
+    const result = await analysisAPI.analyzeVideo(video.id, userStore.userId)
+    // 分析成功后，更新视频的分析状态为 completed
+    video.analysis_status = 'completed'
   } catch (error) {
     console.error('AI 分析失败:', error)
     alert('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'))
   } finally {
     // 无论成功失败都移除分析状态
-    analyzingVideoIds.value.delete(video.video_id)
+    analyzingVideoIds.value.delete(video.id)
   }
 }
 
@@ -612,17 +614,18 @@ const handleAnalyze = async () => {
   if (!video) return
   
   // 将视频 ID 添加到分析中集合
-  analyzingVideoIds.value.add(video.video_id)
+  analyzingVideoIds.value.add(video.id)
   
   try {
-    const result = await analysisAPI.analyzeVideo(video.video_id, userStore.userId)
-    // 不再显示 alert，移除分析状态并更新按钮文字
+    const result = await analysisAPI.analyzeVideo(video.id, userStore.userId)
+    // 分析成功后，更新视频的分析状态为 completed
+    video.analysis_status = 'completed'
   } catch (error) {
     console.error('AI 分析失败:', error)
     alert('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'))
   } finally {
     // 无论成功失败都移除分析状态
-    analyzingVideoIds.value.delete(video.video_id)
+    analyzingVideoIds.value.delete(video.id)
   }
 }
 
@@ -648,17 +651,18 @@ const analyzeCurrentPreviewVideo = async () => {
   if (!currentPreviewVideo.value) return
   
   // 将视频 ID 添加到分析中集合
-  analyzingVideoIds.value.add(currentPreviewVideo.value.video_id)
+  analyzingVideoIds.value.add(currentPreviewVideo.value.id)
   
   try {
-    const result = await analysisAPI.analyzeVideo(currentPreviewVideo.value.video_id, userStore.userId)
-    // 不再显示 alert，移除分析状态并更新按钮文字
+    const result = await analysisAPI.analyzeVideo(currentPreviewVideo.value.id, userStore.userId)
+    // 分析成功后，更新视频的分析状态为 completed
+    currentPreviewVideo.value.analysis_status = 'completed'
   } catch (error) {
     console.error('AI 分析失败:', error)
     alert('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'))
   } finally {
     // 无论成功失败都移除分析状态
-    analyzingVideoIds.value.delete(currentPreviewVideo.value.video_id)
+    analyzingVideoIds.value.delete(currentPreviewVideo.value.id)
   }
 }
 
