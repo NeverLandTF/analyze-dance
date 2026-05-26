@@ -164,7 +164,32 @@
           {{ uploadError }}
         </div>
         
-        <div v-if="uploadedVideo" class="success-message">
+        <div v-if="uploadedVideo && Array.isArray(uploadedVideo)" class="success-message">
+          <div class="success-icon">✓</div>
+          <p>上传成功！共上传 {{ uploadedVideo.length }} 个视频</p>
+          <div class="video-list">
+            <div v-for="(video, index) in uploadedVideo" :key="index" class="video-item">
+              <div class="video-preview">
+                <video :src="getVideoUrl(video.file_path)" controls class="video-player"></video>
+              </div>
+              <div class="video-info">
+                <h4>{{ video.title }}</h4>
+                <p>文件大小：{{ formatFileSize(selectedFiles[index]?.size || 0) }}</p>
+              </div>
+              <button @click="handleAnalyzeSingle(video)" class="btn-analyze-small">
+                🤖 AI 分析
+              </button>
+            </div>
+          </div>
+          <div class="success-actions">
+            <button @click="resetForm" class="btn-secondary">
+              继续上传
+            </button>
+          </div>
+        </div>
+        
+        <!-- 单个视频上传成功的旧版展示（兼容） -->
+        <div v-else-if="uploadedVideo && !Array.isArray(uploadedVideo)" class="success-message">
           <div class="success-icon">✓</div>
           <p>上传成功！</p>
           <div class="video-preview">
@@ -408,7 +433,7 @@ const handleUpload = async () => {
     
     const results = await Promise.all(uploadPromises)
     
-    uploadedVideo.value = results[results.length - 1] // 显示最后一个上传的视频
+    uploadedVideo.value = results // 保存所有上传成功的视频
     uploadProgress.value = 100
     
     // 不再加载视频列表，因为已删除该部分 UI
@@ -448,14 +473,32 @@ const clearFileSelection = () => {
   }
 }
 
-// 开始 AI 分析
+// 开始 AI 分析（单个视频）
+const handleAnalyzeSingle = async (video) => {
+  if (!video) return
+  
+  try {
+    const result = await analysisAPI.analyzeVideo(video.video_id, userStore.userId)
+    alert('AI 分析完成！')
+    router.push(`/analysis/${video.video_id}`)
+  } catch (error) {
+    console.error('AI 分析失败:', error)
+    alert('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'))
+  }
+}
+
+// 开始 AI 分析（旧版，兼容单个视频）
 const handleAnalyze = async () => {
   if (!uploadedVideo.value) return
   
+  // 如果是数组，取第一个
+  const video = Array.isArray(uploadedVideo.value) ? uploadedVideo.value[0] : uploadedVideo.value
+  if (!video) return
+  
   try {
-    const result = await analysisAPI.analyzeVideo(uploadedVideo.value.video_id, userStore.userId)
+    const result = await analysisAPI.analyzeVideo(video.video_id, userStore.userId)
     alert('AI 分析完成！')
-    router.push(`/analysis/${uploadedVideo.value.video_id}`)
+    router.push(`/analysis/${video.video_id}`)
   } catch (error) {
     console.error('AI 分析失败:', error)
     alert('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'))
@@ -1090,6 +1133,85 @@ const handleLogout = () => {
 
   .file-details {
     text-align: center;
+  }
+}
+
+/* 多视频列表样式 */
+.video-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin: 20px 0;
+}
+
+.video-item {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.video-item .video-preview {
+  flex-shrink: 0;
+}
+
+.video-item .video-player {
+  width: 320px;
+  height: 180px;
+  border-radius: 8px;
+  background: #000;
+}
+
+.video-info {
+  flex: 1;
+}
+
+.video-info h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.video-info p {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.btn-analyze-small {
+  flex-shrink: 0;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-analyze-small:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+@media (max-width: 768px) {
+  .video-item {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .video-item .video-player {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16/9;
+  }
+  
+  .btn-analyze-small {
+    width: 100%;
   }
 }
 </style>
