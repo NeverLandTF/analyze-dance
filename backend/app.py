@@ -285,8 +285,15 @@ def login():
 # ===== 用户管理 =====
 
 @app.route('/api/users/<int:user_id>', methods=['GET'])
+@token_required
 def get_user(user_id):
     """获取用户信息"""
+    current_user = request.current_user
+    
+    # 权限验证：普通用户只能查看自己的信息，管理员可以查看任何用户信息
+    if not current_user.get('is_admin', False) and user_id != current_user.get('user_id'):
+        return jsonify({'error': 'Permission denied. You can only view your own information.'}), 403
+    
     user = User.query.get_or_404(user_id)
     
     return jsonify({
@@ -300,8 +307,15 @@ def get_user(user_id):
 
 
 @app.route('/api/users/<int:user_id>/avatar', methods=['PUT'])
+@token_required
 def update_avatar(user_id):
     """更新用户头像（支持 URL 或文件上传）"""
+    current_user = request.current_user
+    
+    # 权限验证：普通用户只能修改自己的头像，管理员可以修改任何用户头像
+    if not current_user.get('is_admin', False) and user_id != current_user.get('user_id'):
+        return jsonify({'error': 'Permission denied. You can only modify your own avatar.'}), 403
+    
     # 检查是否是文件上传
     if 'file' in request.files:
         file = request.files['file']
@@ -376,8 +390,15 @@ def update_avatar(user_id):
 
 
 @app.route('/api/users/<int:user_id>/change-password', methods=['POST'])
+@token_required
 def change_password(user_id):
     """修改密码"""
+    current_user = request.current_user
+    
+    # 权限验证：普通用户只能修改自己的密码，管理员可以修改任何用户密码
+    if not current_user.get('is_admin', False) and user_id != current_user.get('user_id'):
+        return jsonify({'error': 'Permission denied. You can only change your own password.'}), 403
+    
     data = request.get_json()
     
     if not data or not data.get('old_password') or not data.get('new_password'):
@@ -401,17 +422,14 @@ def change_password(user_id):
 # ===== 用户管理 =====
 
 @app.route('/api/users', methods=['GET'])
+@token_required
 def get_users():
     """获取用户列表 - 仅管理员可访问，普通用户无法查看"""
-    user_id = request.args.get('user_id')
-    is_admin = request.args.get('is_admin', 'false').lower() == 'true'
+    current_user = request.current_user
     
     # 只有管理员才能查看所有用户列表
-    if not is_admin:
+    if not current_user.get('is_admin', False):
         return jsonify({'error': '普通用户无法查看用户列表'}), 403
-    
-    if not user_id:
-        return jsonify({'error': 'user_id is required'}), 400
     
     # 管理员可以查看所有用户
     users = User.query.all()
@@ -430,19 +448,13 @@ def get_users():
 
 
 @app.route('/api/users', methods=['POST'])
+@admin_required
 def create_user():
     """创建新用户 - 仅管理员可以创建"""
     data = request.get_json()
     
     if not data or not data.get('username') or not data.get('email') or not data.get('password'):
         return jsonify({'error': 'Missing required fields (username, email, password)'}), 400
-    
-    admin_user_id = data.get('admin_user_id')
-    
-    # 检查操作者是否为管理员
-    admin_user = User.query.get(admin_user_id)
-    if not admin_user or not admin_user.is_admin:
-        return jsonify({'error': '只有管理员可以创建用户'}), 403
     
     # 检查用户是否已存在
     if User.query.filter_by(username=data['username']).first():
@@ -480,6 +492,7 @@ def create_user():
 
 
 @app.route('/api/dancers', methods=['GET'])
+@token_required
 def get_dancers():
     """获取舞者列表（已废弃，请使用 /api/users）"""
     # 重定向到用户接口，保持向后兼容
@@ -487,6 +500,7 @@ def get_dancers():
 
 
 @app.route('/api/dancers', methods=['POST'])
+@admin_required
 def create_dancer():
     """创建舞者（已废弃，请使用 /api/users）"""
     # 重定向到用户创建接口
@@ -494,9 +508,16 @@ def create_dancer():
 
 
 @app.route('/api/dancers/<int:dancer_id>', methods=['GET'])
+@token_required
 def get_dancer(dancer_id):
     """获取单个用户详情"""
+    current_user = request.current_user
+    
     dancer = Dancer.query.get_or_404(dancer_id)
+    
+    # 权限验证：普通用户只能查看自己的舞者信息，管理员可以查看任何舞者信息
+    if not current_user.get('is_admin', False) and dancer.user_id != current_user.get('user_id'):
+        return jsonify({'error': 'Permission denied. You can only view your own dancer information.'}), 403
     
     return jsonify({
         'id': dancer.id,
@@ -580,15 +601,26 @@ def upload_video_file():
 
 
 @app.route('/api/videos', methods=['POST'])
+@token_required
 def upload_video():
     """上传视频（元数据方式，用于兼容旧接口）"""
+    current_user = request.current_user
     data = request.get_json()
     
-    if not data or not data.get('user_id') or not data.get('dancer_id') or not data.get('title'):
+    if not data or not data.get('dancer_id') or not data.get('title'):
         return jsonify({'error': 'Missing required fields'}), 400
     
+    # 从 token 中获取 user_id，除非是管理员可以指定其他用户
+    user_id = data.get('user_id')
+    if not user_id:
+        user_id = current_user.get('user_id')
+    else:
+        # 如果不是管理员，只能给自己上传视频
+        if not current_user.get('is_admin', False) and int(user_id) != current_user.get('user_id'):
+            return jsonify({'error': 'Permission denied. You can only upload videos for yourself.'}), 403
+    
     video = Video(
-        user_id=data['user_id'],
+        user_id=user_id,
         dancer_id=data['dancer_id'],
         title=data['title'],
         file_path=data['file_path'],
@@ -678,6 +710,7 @@ def get_video(video_id):
 # ===== AI 分析 =====
 
 @app.route('/api/analyze', methods=['POST'])
+@token_required
 def analyze_video():
     """触发AI视频分析"""
     data = request.get_json()
@@ -768,8 +801,18 @@ def get_progress_summary(dancer_id):
 # ===== 进步追踪 =====
 
 @app.route('/api/progress/<int:dancer_id>', methods=['GET'])
+@token_required
 def get_progress(dancer_id):
     """获取舞者的进步追踪数据"""
+    current_user = request.current_user
+    
+    # 查找舞者并验证权限
+    dancer = Dancer.query.get_or_404(dancer_id)
+    
+    # 权限验证：普通用户只能查看自己的进步记录，管理员可以查看任何记录
+    if not current_user.get('is_admin', False) and dancer.user_id != current_user.get('user_id'):
+        return jsonify({'error': 'Permission denied. You can only view your own progress.'}), 403
+    
     summary = get_progress_summary(dancer_id)
     
     records = ProgressRecord.query.filter_by(dancer_id=dancer_id).order_by(ProgressRecord.recorded_at.desc()).all()
