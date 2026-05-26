@@ -80,7 +80,10 @@ export const videoAPI = {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('user_id', userId)
-    formData.append('dancer_id', dancerId)
+    // 只在 dancerId 有值时添加，允许后端自动获取默认舞者
+    if (dancerId) {
+      formData.append('dancer_id', dancerId)
+    }
     formData.append('title', title)
     if (danceStyle) {
       formData.append('dance_style', danceStyle)
