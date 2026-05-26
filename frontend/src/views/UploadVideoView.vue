@@ -126,6 +126,13 @@
                 <div class="file-name">{{ file.name }}</div>
                 <div class="file-size">{{ formatFileSize(file.size) }}</div>
                 <div class="file-title-preview">标题：{{ getAutoTitle(index) }}</div>
+                <!-- 单个文件上传进度 -->
+                <div v-if="uploading && fileProgressMap[index] !== undefined" class="file-progress">
+                  <div class="file-progress-bar">
+                    <div class="file-progress-fill" :style="{ width: fileProgressMap[index] + '%' }"></div>
+                  </div>
+                  <span class="file-progress-text">{{ fileProgressMap[index] }}%</span>
+                </div>
               </div>
               <button @click="removeFile(index)" class="btn-remove" :disabled="uploading">
                 ✕
@@ -220,6 +227,7 @@ const fileInput = ref(null)
 // 上传状态
 const uploading = ref(false)
 const uploadProgress = ref(0)
+const fileProgressMap = ref({}) // 存储每个文件的上传进度
 const uploadError = ref('')
 const uploadedVideo = ref(null)
 
@@ -357,56 +365,50 @@ const getVideoUrl = (filePath) => {
   return `${baseURL}${filePath}`
 }
 
-// 处理上传 - 支持批量上传，同时展示真实进度
+// 处理上传 - 支持批量上传，并行上传，每个文件显示独立进度条
 const handleUpload = async () => {
   if (!canUpload.value) return
   
   uploading.value = true
   uploadProgress.value = 0
+  fileProgressMap.value = {} // 重置每个文件的进度
   uploadError.value = ''
   uploadedVideo.value = null
   
   try {
     const totalFiles = selectedFiles.value.length
-    let completedFiles = 0
-    let lastResult = null
     
-    // 并行上传但追踪每个文件的进度
-    // 计算每个文件完成的权重
-    const weightPerFile = 100 / totalFiles
-    
+    // 并行上传所有文件
     const uploadPromises = selectedFiles.value.map((file, index) => {
       // 自动生成带索引的标题
       const autoTitle = getAutoTitle(index)
       // 普通用户不需要传递 dancer_id，后端会自动获取默认舞者
       const dancerIdParam = userStore.isAdmin ? selectedDancerId.value : null
       
-      // 创建 Promise 来追踪这个文件的上传进度
+      // 初始化该文件的进度为 0
+      fileProgressMap.value[index] = 0
+      
       return new Promise((resolve, reject) => {
-        // 使用自定义的 onProgress 回调
         videoAPI.uploadVideoFile(
           file,
           userStore.userId,
           dancerIdParam,
           autoTitle,
           danceStyle.value,
-          (fileProgress) => {
-            // 更新总体进度：已完成文件的进度 + 当前文件的进度 * 权重
-            const currentProgress = (completedFiles * weightPerFile) + (fileProgress * weightPerFile / 100)
-            uploadProgress.value = Math.round(currentProgress)
+          (progress) => {
+            // 更新该文件的进度
+            fileProgressMap.value[index] = progress
+            // 计算总体进度（用于顶部总进度条）
+            const totalProgress = Object.values(fileProgressMap.value).reduce((sum, p) => sum + p, 0) / totalFiles
+            uploadProgress.value = Math.round(totalProgress)
           }
-        ).then(result => {
-          completedFiles++
-          lastResult = result
-          resolve(result)
-        }).catch(error => {
-          reject(error)
-        })
+        ).then(resolve).catch(reject)
       })
     })
     
-    await Promise.all(uploadPromises)
-    uploadedVideo.value = lastResult // 显示最后一个上传的视频
+    const results = await Promise.all(uploadPromises)
+    
+    uploadedVideo.value = results[results.length - 1] // 显示最后一个上传的视频
     uploadProgress.value = 100
     
     // 不再加载视频列表，因为已删除该部分 UI
@@ -805,6 +807,36 @@ const handleLogout = () => {
   color: #667eea;
   margin-top: 4px;
   font-weight: 500;
+}
+
+/* 单个文件进度条样式 */
+.file-progress {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.file-progress-fill {
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.3s;
+}
+
+.file-progress-text {
+  font-size: 11px;
+  color: #667eea;
+  font-weight: 600;
+  min-width: 35px;
+  text-align: right;
 }
 
 .file-icon {

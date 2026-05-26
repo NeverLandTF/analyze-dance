@@ -1,52 +1,46 @@
 ```
-# Dependencies
-node_modules/
-
-# Build artifacts
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
 dist/
 build/
 target/
 
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
+# Dependencies
 .venv/
-.ENV
-.python-version
+venv/
+node_modules/
+.julia/
+zig*/
+.mypy_cache/
+.pytest_cache/
+.gradle/
 
-# Logs
+# Logs and temp files
 *.log
-
-# Environment variables
-.env
-.env.local
-*.env
-
-# IDE files
-.vscode/
-.idea/
+*.tmp
 *.swp
 *.swo
-*~
 
-# OS generated files
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# System files
 .DS_Store
 Thumbs.db
 
 # Coverage
-.coverage
 coverage/
 htmlcov/
-
-# Temporary files
-*.tmp
-*.temp
-*.bak
+.coverage
 
 # Compressed files
 *.zip
@@ -71,20 +65,4 @@ htmlcov/
 *.tar.bz2
 *.tar.xz
 *.tar.zst
-
-# Gradle
-.gradle/
-
-# MyPy
-.mypy_cache/
-
-# PyTest
-.pytest_cache/
-
-# Distribution / packaging
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.coverage.xml
-nosetests.xml
 ```
