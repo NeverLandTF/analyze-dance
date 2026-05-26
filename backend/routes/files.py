@@ -2,7 +2,7 @@
 文件服务相关路由模块
 处理上传文件、头像等静态文件访问
 """
-from flask import Blueprint, request, jsonify, send_from_directory
+from flask import Blueprint, request, jsonify, send_from_directory, current_app
 from werkzeug.utils import secure_filename
 import uuid
 import os
@@ -15,7 +15,7 @@ file_bp = Blueprint('files', __name__, url_prefix='/api')
 @file_bp.route('/uploads/<subfolder>/<filename>')
 def serve_upload_with_subfolder(subfolder, filename):
     """提供上传的视频文件访问（支持子目录）"""
-    upload_folder = request.app.config.get('UPLOAD_FOLDER', 'uploads')
+    upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
     folder_path = os.path.join(upload_folder, subfolder)
     return send_from_directory(folder_path, filename)
 
@@ -23,14 +23,14 @@ def serve_upload_with_subfolder(subfolder, filename):
 @file_bp.route('/uploads/<filename>')
 def serve_upload(filename):
     """提供上传的文件访问（根目录）"""
-    upload_folder = request.app.config.get('UPLOAD_FOLDER', 'uploads')
+    upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
     return send_from_directory(upload_folder, filename)
 
 
 @file_bp.route('/avatars/<filename>')
 def serve_avatar(filename):
     """提供头像文件访问"""
-    avatar_folder = request.app.config.get('AVATAR_FOLDER', 'uploads/avatars')
+    avatar_folder = current_app.config.get('AVATAR_FOLDER', 'uploads/avatars')
     return send_from_directory(avatar_folder, filename)
 
 
@@ -47,7 +47,7 @@ def upload_temp_avatar():
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
     
-    allowed_image_extensions = request.app.config.get('ALLOWED_IMAGE_EXTENSIONS', ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'])
+    allowed_image_extensions = current_app.config.get('ALLOWED_IMAGE_EXTENSIONS', ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'])
     if not allowed_file(file.filename, allowed_image_extensions):
         return jsonify({'error': 'File type not allowed. Allowed types: jpg, jpeg, png, gif, bmp, webp'}), 400
     
@@ -56,7 +56,7 @@ def upload_temp_avatar():
     file_size = file.tell()
     file.seek(0)
     
-    max_avatar_size = request.app.config.get('MAX_AVATAR_SIZE', 5 * 1024 * 1024)
+    max_avatar_size = current_app.config.get('MAX_AVATAR_SIZE', 5 * 1024 * 1024)
     if file_size > max_avatar_size:
         return jsonify({'error': 'File size exceeds 5MB limit'}), 400
     
@@ -66,7 +66,7 @@ def upload_temp_avatar():
     unique_filename = f"temp_{uuid.uuid4().hex}.{ext}"
     
     # 保存文件
-    avatar_folder = request.app.config.get('AVATAR_FOLDER', 'uploads/avatars')
+    avatar_folder = current_app.config.get('AVATAR_FOLDER', 'uploads/avatars')
     file_path = os.path.join(avatar_folder, unique_filename)
     file.save(file_path)
     
