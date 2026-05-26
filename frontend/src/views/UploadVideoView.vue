@@ -52,8 +52,8 @@
       </div>
       
       <div class="upload-section">
-        <!-- 选择舞者 -->
-        <div class="form-group">
+        <!-- 选择舞者 - 仅管理员可见 -->
+        <div v-if="userStore.isAdmin" class="form-group">
           <label>选择舞者（用户）</label>
           <select v-model="selectedDancerId" class="form-select" :disabled="loading || uploading">
             <option value="">请选择用户</option>
@@ -225,7 +225,7 @@ onUnmounted(() => {
 
 // 表单数据
 const users = ref([])
-const selectedDancerId = ref('')
+const selectedDancerId = ref(null)
 const videoTitle = ref('')
 const danceStyle = ref('')
 const selectedFile = ref(null)
@@ -246,6 +246,11 @@ const loading = ref(false)
 
 // 计算属性
 const canUpload = computed(() => {
+  // 普通用户不需要选择舞者（自动使用自己的 ID），只需要标题和文件
+  if (!userStore.isAdmin) {
+    return videoTitle.value && selectedFile.value
+  }
+  // 管理员需要选择舞者、标题和文件
   return selectedDancerId.value && videoTitle.value && selectedFile.value
 })
 
@@ -260,18 +265,19 @@ const videoUrl = computed(() => {
 const loadUsers = async () => {
   try {
     loading.value = true
-    // 普通用户只能看到自己，管理员可以看到所有用户
-    const response = await userAPI.getUsers(userStore.userId, userStore.isAdmin)
-    // 过滤出当前用户或所有用户（根据角色）
+    // 仅管理员需要加载用户列表，普通用户直接使用自己的 ID
     if (userStore.isAdmin) {
+      const response = await userAPI.getUsers(userStore.userId, userStore.isAdmin)
       users.value = response.users
+      
+      // 如果有用户，自动选择第一个
+      if (users.value.length > 0 && selectedDancerId.value === null) {
+        selectedDancerId.value = users.value[0].id
+      }
     } else {
-      users.value = response.users.filter(u => u.id === userStore.userId)
-    }
-    
-    // 如果有用户，自动选择第一个（即自己）
-    if (users.value.length > 0 && !selectedDancerId.value) {
-      selectedDancerId.value = users.value[0].id
+      // 普通用户直接设置自己的 ID
+      users.value = [{ id: userStore.userId, username: userStore.user?.username }]
+      selectedDancerId.value = userStore.userId
     }
   } catch (error) {
     console.error('加载用户列表失败:', error)
@@ -374,7 +380,7 @@ const handleUpload = async () => {
     const response = await videoAPI.uploadVideoFile(
       selectedFile.value,
       userStore.userId,
-      selectedDancerId.value,
+      selectedDancerId.value || userStore.userId, // 普通用户自动使用自己的 ID
       videoTitle.value,
       danceStyle.value
     )
@@ -394,7 +400,12 @@ const handleUpload = async () => {
 
 // 重置表单
 const resetForm = () => {
-  selectedDancerId.value = users.value.length > 0 ? users.value[0].id : ''
+  // 管理员重置为第一个用户，普通用户重置为自己
+  if (userStore.isAdmin) {
+    selectedDancerId.value = users.value.length > 0 ? users.value[0].id : null
+  } else {
+    selectedDancerId.value = userStore.userId
+  }
   videoTitle.value = ''
   danceStyle.value = ''
   selectedFile.value = null
