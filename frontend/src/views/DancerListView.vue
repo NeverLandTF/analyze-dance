@@ -74,19 +74,32 @@
             v-for="user in users" 
             :key="user.id" 
             class="user-card"
-            @click="$router.push(`/dancers/${user.id}`)"
           >
-            <div class="user-avatar">
-              {{ user.username.charAt(0).toUpperCase() }}
+            <div class="user-actions">
+              <button 
+                @click.stop="handleDelete(user)" 
+                class="btn-delete"
+                title="删除用户"
+              >
+                🗑️
+              </button>
             </div>
-            <h3>{{ user.username }}</h3>
-            <p class="email">{{ user.email }}</p>
-            <div class="role-badge" :class="user.is_admin ? 'admin' : 'user'">
-              {{ user.is_admin ? '管理员' : '普通用户' }}
-            </div>
-            <div class="stats">
-              <span>视频数：{{ user.video_count }}</span>
-              <span>注册时间：{{ new Date(user.created_at).toLocaleDateString() }}</span>
+            <div 
+              class="user-card-content"
+              @click="$router.push(`/dancers/${user.id}`)"
+            >
+              <div class="user-avatar">
+                {{ user.username.charAt(0).toUpperCase() }}
+              </div>
+              <h3>{{ user.username }}</h3>
+              <p class="email">{{ user.email }}</p>
+              <div class="role-badge" :class="user.is_admin ? 'admin' : 'user'">
+                {{ user.is_admin ? '管理员' : '普通用户' }}
+              </div>
+              <div class="stats">
+                <span>视频数：{{ user.video_count }}</span>
+                <span>注册时间：{{ new Date(user.created_at).toLocaleDateString() }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -236,6 +249,20 @@ const handleCreate = async () => {
     alert('创建失败：' + (error.response?.data?.error || '请稍后重试'))
   } finally {
     creating.value = false
+  }
+}
+
+const handleDelete = async (user) => {
+  if (!confirm(`确定要删除用户 "${user.username}" 吗？\n\n警告：此操作将删除该用户的所有数据，包括：\n- 所有上传的视频文件\n- 所有视频缩略图\n- 用户头像\n- 所有分析记录\n- 所有进步追踪记录\n\n此操作不可恢复！`)) {
+    return
+  }
+  
+  try {
+    await userAPI.deleteUser(user.id)
+    alert('用户已删除')
+    await loadUsers()
+  } catch (error) {
+    alert('删除失败：' + (error.response?.data?.error || '请稍后重试'))
   }
 }
 
@@ -490,14 +517,41 @@ const handleLogout = () => {
   background: white;
   padding: 30px;
   border-radius: 12px;
-  cursor: pointer;
   transition: transform 0.3s, box-shadow 0.3s;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  position: relative;
 }
 
 .user-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.user-actions {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 10;
+}
+
+.btn-delete {
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-delete:hover {
+  background: #fdd;
+  border-color: #faa;
+  transform: scale(1.1);
+}
+
+.user-card-content {
+  cursor: pointer;
 }
 
 .user-avatar {

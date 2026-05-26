@@ -7,7 +7,7 @@ from werkzeug.utils import secure_filename
 import uuid
 import os
 
-from models import db, User, Dancer
+from models import db, User, Dancer, Video
 from utils.auth import token_required, admin_required, generate_token
 from utils.file_utils import allowed_file
 
@@ -345,3 +345,77 @@ def get_dancer(dancer_id):
         } for v in dancer.videos],
         'progress_summary': get_progress_summary(dancer.id)
     })
+
+
+@user_bp.route('/users/<int:user_id>', methods=['DELETE'])
+@admin_required
+def delete_user(user_id):
+    """删除用户 - 仅管理员可访问，删除时清理所有关联数据和文件"""
+    current_user = request.current_user
+    app = request.app
+    
+    # 防止删除自己
+    if user_id == current_user.get('user_id'):
+        return jsonify({'error': 'Cannot delete yourself'}), 400
+    
+    user = User.query.get_or_404(user_id)
+    
+    # 获取用户上传目录配置
+    upload_folder = app.config.get('UPLOAD_FOLDER', 'uploads')
+    
+    try:
+        # 1. 收集并删除该用户的所有视频文件
+        videos = Video.query.filter_by(user_id=user_id).all()
+        for video in videos:
+            # 删除视频文件
+            video_file_path = os.path.join(upload_folder, video.file_path.lstrip('/'))
+            if os.path.exists(video_file_path):
+                try:
+                    os.remove(video_file_path)
+                except Exception as e:
+                    print(f"Error deleting video file {video_file_path}: {e}")
+            
+            # 删除视频缩略图
+            if video.thumbnail_url:
+                thumbnail_path = os.path.join(upload_folder, video.thumbnail_url.lstrip('/'))
+                if os.path.exists(thumbnail_path):
+                    try:
+                        os.remove(thumbnail_path)
+                    except Exception as e:
+                        print(f"Error deleting thumbnail {thumbnail_path}: {e}")
+        
+        # 2. 删除该用户的头像文件
+        if user.avatar_url:
+            avatar_path = os.path.join(upload_folder, user.avatar_url.lstrip('/'))
+            if os.path.exists(avatar_path):
+                try:
+                    os.remove(avatar_path)
+                except Exception as e:
+                    print(f"Error deleting avatar {avatar_path}: {e}")
+        
+        # 3. 删除数据库记录
+        # 由于模型中设置了 cascade='all, delete-orphan'，删除用户时会自动删除：
+        # - 所有 Dancer 记录
+        # - 所有 Video 记录（以及关联的 Analysis 记录）
+        # - 所有 Analysis 记录
+        # ProgressRecord 通过 dancer_id 关联，需要在删除 Dancer 前处理
+        
+        # 先删除所有进步记录（通过舞者关联）
+        dancers = Dancer.query.filter_by(user_id=user_id).all()
+        for dancer in dancers:
+            # ProgressRecord 会通过 cascade 自动删除
+            pass
+        
+        # 删除用户（会自动级联删除所有关联数据）
+        db.session.delete(user)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'User and all associated data deleted successfully',
+            'deleted_user_id': user_id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting user {user_id}: {e}")
+        return jsonify({'error': f'Failed to delete user: {str(e)}'}), 500
