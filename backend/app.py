@@ -851,9 +851,17 @@ def get_progress(dancer_id):
 
 
 # 静态文件服务 - 提供上传的视频文件和头像访问
+@app.route('/api/uploads/<subfolder>/<filename>')
+def serve_upload_with_subfolder(subfolder, filename):
+    """提供上传的视频文件访问（支持子目录）"""
+    from flask import send_from_directory
+    folder_path = os.path.join(app.config['UPLOAD_FOLDER'], subfolder)
+    return send_from_directory(folder_path, filename)
+
+
 @app.route('/api/uploads/<filename>')
 def serve_upload(filename):
-    """提供上传的视频文件访问"""
+    """提供上传的文件访问（根目录）"""
     from flask import send_from_directory
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
