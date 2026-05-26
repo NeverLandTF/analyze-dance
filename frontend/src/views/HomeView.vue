@@ -96,15 +96,37 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
+import { authAPI } from '../api/modules'
 
 const router = useRouter()
 const userStore = useUserStore()
 
 const showUserMenu = ref(false)
 const userMenuRef = ref(null)
+
+// 加载用户最新信息（包括头像）
+onMounted(async () => {
+  if (userStore.userId) {
+    try {
+      const userInfo = await authAPI.getUser(userStore.userId)
+      if (userInfo && userInfo.avatar_url) {
+        userStore.updateUser({ avatar_url: userInfo.avatar_url })
+      }
+    } catch (error) {
+      console.error('获取用户信息失败:', error)
+    }
+  }
+  
+  // 监听点击外部事件
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 
 const toggleUserMenu = () => {
   showUserMenu.value = !showUserMenu.value
@@ -116,15 +138,6 @@ const handleClickOutside = (event) => {
     showUserMenu.value = false
   }
 }
-
-// 监听点击外部事件
-import { onMounted, onUnmounted } from 'vue'
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-})
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
 
 const handleLogout = () => {
   userStore.logout()

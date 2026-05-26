@@ -67,7 +67,7 @@ const handleLogin = async () => {
     
     userStore.setUser(
       { id: response.user_id, username: response.username },
-      'mock-token-' + response.user_id, // 实际项目中应使用真实 token
+      response.token, // 使用后端返回的真实 JWT token
       response.is_admin || false // 保存管理员状态
     )
     
