@@ -48,10 +48,14 @@ def analyze_video():
         video_description = f"视频标题：{video.title}, 舞蹈风格：{video.dance_style or '未指定'}"
         
         # 调用 AI 分析服务
-        analysis_result = ai_service.analyze_video(
+        result = ai_service.analyze_video(
             video_description=video_description,
             dance_style=video.dance_style or ""
         )
+        
+        # 解析返回结果（包含 analysis 和 usage）
+        analysis_result = result.get('analysis', {})
+        token_usage = result.get('usage', {})
         
     except ValueError as e:
         # API Key 未配置等错误
@@ -66,14 +70,19 @@ def analyze_video():
             'overall_score': 85,
             'summary': ''
         }
+        token_usage = {}
     
+    # 创建分析记录，保存 token 使用量到 result_data
     analysis = Analysis(
         user_id=data['user_id'],
         video_id=data['video_id'],
         analysis_type='comprehensive',
-        result_data=analysis_result,
+        result_data={
+            **analysis_result,
+            'token_usage': token_usage  # 记录 token 使用量
+        },
         confidence_score=analysis_result.get('pose_detection', {}).get('confidence', 0.92),
-        model_version='qwen-plus'  # 使用配置的模型名称
+        model_version=token_usage.get('model', ai_service.model_name)  # 使用实际调用的模型名称
     )
     
     db.session.add(analysis)
@@ -86,5 +95,6 @@ def analyze_video():
     return jsonify({
         'message': 'Analysis completed',
         'analysis_id': analysis.id,
-        'results': analysis_result
+        'results': analysis_result,
+        'token_usage': token_usage  # 返回 token 使用量给前端
     })
