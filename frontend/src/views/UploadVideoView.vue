@@ -97,26 +97,30 @@
             ref="fileInput" 
             accept="video/*" 
             @change="handleFileSelect"
+            multiple
             class="file-input"
             :disabled="uploading"
           />
-          <div v-if="!selectedFile" class="upload-placeholder">
+          <div v-if="selectedFiles.length === 0" class="upload-placeholder">
             <div class="upload-icon">📹</div>
             <p>拖拽视频文件到此处，或点击选择文件</p>
-            <p class="hint">支持 MP4, AVI, MOV, MKV, WebM 格式，最大 500MB</p>
+            <p class="hint">支持 MP4, AVI, MOV, MKV, WebM 格式，最大 1GB，可多选</p>
             <button @click="fileInput.click()" class="btn-select" :disabled="uploading">
               选择文件
             </button>
           </div>
-          <div v-else class="file-info">
-            <div class="file-icon">🎬</div>
-            <div class="file-details">
-              <div class="file-name">{{ selectedFile.name }}</div>
-              <div class="file-size">{{ formatFileSize(selectedFile.size) }}</div>
+          <div v-else class="file-list">
+            <div v-for="(file, index) in selectedFiles" :key="index" class="file-info">
+              <div class="file-icon">🎬</div>
+              <div class="file-details">
+                <div class="file-name">{{ file.name }}</div>
+                <div class="file-size">{{ formatFileSize(file.size) }}</div>
+                <div class="file-title-preview">标题：{{ getAutoTitle(index) }}</div>
+              </div>
+              <button @click="removeFile(index)" class="btn-remove" :disabled="uploading">
+                ✕
+              </button>
             </div>
-            <button @click="clearFile" class="btn-remove" :disabled="uploading">
-              ✕
-            </button>
           </div>
         </div>
         
@@ -228,7 +232,7 @@ const users = ref([])
 const selectedDancerId = ref(null)
 const videoTitle = ref('')
 const danceStyle = ref('')
-const selectedFile = ref(null)
+const selectedFiles = ref([])
 const fileInput = ref(null)
 
 // 上传状态
@@ -248,10 +252,10 @@ const loading = ref(false)
 const canUpload = computed(() => {
   // 普通用户不需要选择舞者（自动使用自己的 ID），只需要标题和文件
   if (!userStore.isAdmin) {
-    return videoTitle.value && selectedFile.value
+    return videoTitle.value && selectedFiles.value.length > 0
   }
   // 管理员需要选择舞者、标题和文件
-  return selectedDancerId.value && videoTitle.value && selectedFile.value
+  return selectedDancerId.value && videoTitle.value && selectedFiles.value.length > 0
 })
 
 const videoUrl = computed(() => {
@@ -302,45 +306,54 @@ const loadVideos = async () => {
 
 // 处理文件选择
 const handleFileSelect = (event) => {
-  const file = event.target.files[0]
-  if (file) {
-    validateAndSetFile(file)
+  const files = Array.from(event.target.files)
+  if (files.length > 0) {
+    validateAndSetFiles(files)
   }
 }
 
 // 处理拖放
 const handleDrop = (event) => {
-  const file = event.dataTransfer.files[0]
-  if (file) {
-    validateAndSetFile(file)
+  const files = Array.from(event.dataTransfer.files)
+  if (files.length > 0) {
+    validateAndSetFiles(files)
   }
 }
 
-// 验证并设置文件
-const validateAndSetFile = (file) => {
+// 验证并设置文件（支持多个）
+const validateAndSetFiles = (files) => {
   // 检查文件类型
-  if (!file.type.startsWith('video/')) {
-    uploadError.value = '请选择视频文件'
-    return
-  }
+  const validFiles = files.filter(file => {
+    if (!file.type.startsWith('video/')) {
+      uploadError.value = '请选择视频文件'
+      return false
+    }
+    
+    // 检查文件大小 (1GB)
+    const maxSize = 1024 * 1024 * 1024
+    if (file.size > maxSize) {
+      uploadError.value = '文件大小不能超过 1GB'
+      return false
+    }
+    
+    return true
+  })
   
-  // 检查文件大小 (500MB)
-  const maxSize = 500 * 1024 * 1024
-  if (file.size > maxSize) {
-    uploadError.value = '文件大小不能超过 500MB'
-    return
+  if (validFiles.length > 0) {
+    selectedFiles.value = [...selectedFiles.value, ...validFiles]
+    uploadError.value = ''
   }
-  
-  selectedFile.value = file
-  uploadError.value = ''
 }
 
-// 清除文件
-const clearFile = () => {
-  selectedFile.value = null
-  if (fileInput) {
-    fileInput.value = ''
-  }
+// 移除单个文件
+const removeFile = (index) => {
+  selectedFiles.value.splice(index, 1)
+}
+
+// 自动生成标题（带索引）
+const getAutoTitle = (index) => {
+  if (!videoTitle.value) return `视频 ${index + 1}`
+  return `${videoTitle.value}_${index + 1}`
 }
 
 // 格式化文件大小
@@ -367,7 +380,7 @@ const getVideoUrl = (filePath) => {
   return `${baseURL}${filePath}`
 }
 
-// 处理上传
+// 处理上传 - 支持批量上传
 const handleUpload = async () => {
   if (!canUpload.value) return
   
@@ -377,15 +390,21 @@ const handleUpload = async () => {
   uploadedVideo.value = null
   
   try {
-    const response = await videoAPI.uploadVideoFile(
-      selectedFile.value,
-      userStore.userId,
-      selectedDancerId.value || userStore.userId, // 普通用户自动使用自己的 ID
-      videoTitle.value,
-      danceStyle.value
-    )
+    // 批量上传多个视频
+    const uploadPromises = selectedFiles.value.map((file, index) => {
+      // 自动生成带索引的标题
+      const autoTitle = getAutoTitle(index)
+      return videoAPI.uploadVideoFile(
+        file,
+        userStore.userId,
+        selectedDancerId.value || userStore.userId,
+        autoTitle,
+        danceStyle.value
+      )
+    })
     
-    uploadedVideo.value = response
+    const results = await Promise.all(uploadPromises)
+    uploadedVideo.value = results[results.length - 1] // 显示最后一个上传的视频
     uploadProgress.value = 100
     
     // 重新加载视频列表
@@ -408,7 +427,7 @@ const resetForm = () => {
   }
   videoTitle.value = ''
   danceStyle.value = ''
-  selectedFile.value = null
+  selectedFiles.value = []
   uploadError.value = ''
   uploadedVideo.value = null
   uploadProgress.value = 0
@@ -724,6 +743,22 @@ const handleLogout = () => {
   display: flex;
   align-items: center;
   gap: 15px;
+  padding: 15px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.file-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.file-title-preview {
+  font-size: 12px;
+  color: #667eea;
+  margin-top: 4px;
+  font-weight: 500;
 }
 
 .file-icon {
