@@ -9,40 +9,15 @@ env/
 venv/
 .venv/
 .ENV
-.ENV.local
-.env
-.env.local
-.env.*
-
-# Databases
-*.sqlite
-*.db
-
-# Logs
-*.log
-
-# Coverage
+.python-version
+.pytest_cache/
+.mypy_cache/
 .coverage
 coverage/
 htmlcov/
 
-# Testing
-.pytest_cache/
-.mypy_cache/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*.tmp
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Build
-build/
-dist/
-*.egg-info/
+# Migration backups
+backend/migrations/versions/*.bak
+backend/migrations/versions/*.orig
+backend/migrations/versions/*~
 ```
