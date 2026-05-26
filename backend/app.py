@@ -323,77 +323,104 @@ def change_password(user_id):
     return jsonify({'message': 'Password changed successfully'})
 
 
-# ===== 舞者管理 =====
+# ===== 用户管理 =====
 
-@app.route('/api/dancers', methods=['GET'])
-def get_dancers():
-    """获取舞者列表 - 管理员可查看所有舞者，普通用户只看自己的"""
+@app.route('/api/users', methods=['GET'])
+def get_users():
+    """获取用户列表 - 仅管理员可访问，普通用户无法查看"""
     user_id = request.args.get('user_id')
     is_admin = request.args.get('is_admin', 'false').lower() == 'true'
     
-    if not user_id and not is_admin:
-        return jsonify({'error': 'user_id is required for non-admin users'}), 400
+    # 只有管理员才能查看所有用户列表
+    if not is_admin:
+        return jsonify({'error': '普通用户无法查看用户列表'}), 403
     
-    if is_admin:
-        # 管理员可以查看所有舞者
-        dancers = Dancer.query.all()
-    else:
-        # 普通用户只能查看自己的舞者
-        dancers = Dancer.query.filter_by(user_id=user_id).all()
+    if not user_id:
+        return jsonify({'error': 'user_id is required'}), 400
+    
+    # 管理员可以查看所有用户
+    users = User.query.all()
     
     return jsonify({
-        'dancers': [{
-            'id': d.id,
-            'name': d.name,
-            'description': d.description,
-            'avatar_url': d.avatar_url,
-            'created_at': d.created_at.isoformat(),
-            'video_count': len(d.videos),
-            'owner_username': d.user.username  # 显示舞者所属用户名
-        } for d in dancers]
+        'users': [{
+            'id': u.id,
+            'username': u.username,
+            'email': u.email,
+            'avatar_url': u.avatar_url,
+            'is_admin': u.is_admin,
+            'created_at': u.created_at.isoformat(),
+            'video_count': len(u.videos)
+        } for u in users]
     })
 
 
-@app.route('/api/dancers', methods=['POST'])
-def create_dancer():
-    """创建新舞者 - 仅管理员可以创建（管理员创建舞者相当于创建一个可登录的用户）"""
+@app.route('/api/users', methods=['POST'])
+def create_user():
+    """创建新用户 - 仅管理员可以创建"""
     data = request.get_json()
     
-    if not data or not data.get('user_id') or not data.get('name'):
-        return jsonify({'error': 'Missing required fields'}), 400
+    if not data or not data.get('username') or not data.get('email') or not data.get('password'):
+        return jsonify({'error': 'Missing required fields (username, email, password)'}), 400
     
-    user_id = data['user_id']
+    admin_user_id = data.get('admin_user_id')
     
-    # 检查是否为管理员
-    user = User.query.get(user_id)
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
+    # 检查操作者是否为管理员
+    admin_user = User.query.get(admin_user_id)
+    if not admin_user or not admin_user.is_admin:
+        return jsonify({'error': '只有管理员可以创建用户'}), 403
     
-    is_admin = user.is_admin
+    # 检查用户是否已存在
+    if User.query.filter_by(username=data['username']).first():
+        return jsonify({'error': 'Username already exists'}), 409
     
-    # 只有管理员才能创建舞者
-    if not is_admin:
-        return jsonify({'error': '普通用户无法创建舞者，注册时已自动创建个人舞者档案'}), 403
+    if User.query.filter_by(email=data['email']).first():
+        return jsonify({'error': 'Email already exists'}), 409
     
+    user = User(
+        username=data['username'],
+        email=data['email'],
+        is_admin=data.get('is_admin', False)
+    )
+    user.set_password(data['password'])
+    
+    db.session.add(user)
+    db.session.flush()
+    
+    # 自动创建一个同名舞者
     dancer = Dancer(
-        user_id=user_id,
-        name=data['name'],
-        description=data.get('description', ''),
+        user_id=user.id,
+        name=data['username'],
+        description=data.get('description', '个人舞者档案'),
         avatar_url=data.get('avatar_url')
     )
-    
     db.session.add(dancer)
+    
     db.session.commit()
     
     return jsonify({
-        'message': 'Dancer created successfully',
+        'message': 'User created successfully',
+        'user_id': user.id,
         'dancer_id': dancer.id
     }), 201
 
 
+@app.route('/api/dancers', methods=['GET'])
+def get_dancers():
+    """获取舞者列表（已废弃，请使用 /api/users）"""
+    # 重定向到用户接口，保持向后兼容
+    return get_users()
+
+
+@app.route('/api/dancers', methods=['POST'])
+def create_dancer():
+    """创建舞者（已废弃，请使用 /api/users）"""
+    # 重定向到用户创建接口
+    return create_user()
+
+
 @app.route('/api/dancers/<int:dancer_id>', methods=['GET'])
 def get_dancer(dancer_id):
-    """获取单个舞者详情"""
+    """获取单个用户详情"""
     dancer = Dancer.query.get_or_404(dancer_id)
     
     return jsonify({

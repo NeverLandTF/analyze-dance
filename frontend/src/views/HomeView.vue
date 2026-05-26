@@ -4,7 +4,8 @@
       <div class="nav-brand">🎵 舞蹈 AI 分析</div>
       <div class="nav-links">
         <span v-if="userStore.isAdmin" class="admin-badge-nav">管理员</span>
-        <router-link to="/dancers" class="nav-link">舞者管理</router-link>
+        <router-link to="/" class="nav-link">首页</router-link>
+        <router-link v-if="userStore.isAdmin" to="/dancers" class="nav-link">用户管理</router-link>
         <router-link to="/upload" class="nav-link">上传视频</router-link>
         
         <!-- 用户头像下拉菜单 -->
@@ -54,10 +55,10 @@
       </div>
       
       <div class="features-grid">
-        <div class="feature-card" @click="$router.push('/dancers')">
+        <div class="feature-card" @click="$router.push('/dancers')" v-if="userStore.isAdmin">
           <div class="feature-icon">👤</div>
-          <h3>舞者管理</h3>
-          <p>创建和管理多个舞者档案，实现个人数据隔离</p>
+          <h3>用户管理</h3>
+          <p>管理员可以创建和管理用户，每个用户即代表一个舞者</p>
         </div>
         
         <div class="feature-card" @click="$router.push('/upload')">
