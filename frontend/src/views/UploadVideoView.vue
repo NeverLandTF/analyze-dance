@@ -168,33 +168,6 @@
           </div>
         </div>
       </div>
-      
-      <!-- 已上传视频列表 -->
-      <div class="videos-section">
-        <h2>我的视频</h2>
-        <div v-if="loadingVideos" class="loading">加载中...</div>
-        <div v-else-if="videos.length === 0" class="empty-state">
-          暂无上传的视频
-        </div>
-        <div v-else class="videos-grid">
-          <div v-for="video in videos" :key="video.id" class="video-card">
-            <div class="video-thumbnail">
-              <video :src="getVideoUrl(video.file_path)" preload="metadata"></video>
-            </div>
-            <div class="video-info">
-              <h3>{{ video.title }}</h3>
-              <p class="video-meta">
-                <span v-if="video.dance_style" class="dance-style">{{ video.dance_style }}</span>
-                <span class="upload-date">{{ formatDate(video.upload_date) }}</span>
-              </p>
-              <div class="video-actions">
-                <button @click="viewVideo(video)" class="btn-small">预览</button>
-                <button @click="analyzeVideo(video)" class="btn-small btn-analyze-small">AI 分析</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </main>
   </div>
 </template>
@@ -225,7 +198,6 @@ const handleClickOutside = (event) => {
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   loadUsers()
-  loadVideos()
 })
 
 onUnmounted(() => {
@@ -245,10 +217,6 @@ const uploading = ref(false)
 const uploadProgress = ref(0)
 const uploadError = ref('')
 const uploadedVideo = ref(null)
-
-// 视频列表
-const videos = ref([])
-const loadingVideos = ref(false)
 
 // 加载状态
 const loading = ref(false)
@@ -293,19 +261,6 @@ const loadUsers = async () => {
     uploadError.value = '加载用户列表失败'
   } finally {
     loading.value = false
-  }
-}
-
-// 加载视频列表
-const loadVideos = async () => {
-  try {
-    loadingVideos.value = true
-    const response = await videoAPI.getVideos(userStore.userId)
-    videos.value = response.videos
-  } catch (error) {
-    console.error('加载视频列表失败:', error)
-  } finally {
-    loadingVideos.value = false
   }
 }
 
@@ -385,7 +340,7 @@ const getVideoUrl = (filePath) => {
   return `${baseURL}${filePath}`
 }
 
-// 处理上传 - 支持批量上传
+// 处理上传 - 支持批量上传，同时展示真实进度
 const handleUpload = async () => {
   if (!canUpload.value) return
   
@@ -395,28 +350,49 @@ const handleUpload = async () => {
   uploadedVideo.value = null
   
   try {
-    // 批量上传多个视频
+    const totalFiles = selectedFiles.value.length
+    let completedFiles = 0
+    let lastResult = null
+    
+    // 并行上传但追踪每个文件的进度
+    // 计算每个文件完成的权重
+    const weightPerFile = 100 / totalFiles
+    
     const uploadPromises = selectedFiles.value.map((file, index) => {
       // 自动生成带索引的标题
       const autoTitle = getAutoTitle(index)
       // 普通用户不需要传递 dancer_id，后端会自动获取默认舞者
       const dancerIdParam = userStore.isAdmin ? selectedDancerId.value : null
       
-      return videoAPI.uploadVideoFile(
-        file,
-        userStore.userId,
-        dancerIdParam,  // 传递 null 让后端自动获取
-        autoTitle,
-        danceStyle.value
-      )
+      // 创建 Promise 来追踪这个文件的上传进度
+      return new Promise((resolve, reject) => {
+        // 使用自定义的 onProgress 回调
+        videoAPI.uploadVideoFile(
+          file,
+          userStore.userId,
+          dancerIdParam,
+          autoTitle,
+          danceStyle.value,
+          (fileProgress) => {
+            // 更新总体进度：已完成文件的进度 + 当前文件的进度 * 权重
+            const currentProgress = (completedFiles * weightPerFile) + (fileProgress * weightPerFile / 100)
+            uploadProgress.value = Math.round(currentProgress)
+          }
+        ).then(result => {
+          completedFiles++
+          lastResult = result
+          resolve(result)
+        }).catch(error => {
+          reject(error)
+        })
+      })
     })
     
-    const results = await Promise.all(uploadPromises)
-    uploadedVideo.value = results[results.length - 1] // 显示最后一个上传的视频
+    await Promise.all(uploadPromises)
+    uploadedVideo.value = lastResult // 显示最后一个上传的视频
     uploadProgress.value = 100
     
-    // 重新加载视频列表
-    await loadVideos()
+    // 不再加载视频列表，因为已删除该部分 UI
   } catch (error) {
     console.error('上传失败:', error)
     uploadError.value = error.response?.data?.error || '上传失败，请稍后重试'
@@ -461,25 +437,6 @@ const handleAnalyze = async () => {
     const result = await analysisAPI.analyzeVideo(uploadedVideo.value.video_id, userStore.userId)
     alert('AI 分析完成！')
     router.push(`/analysis/${uploadedVideo.value.video_id}`)
-  } catch (error) {
-    console.error('AI 分析失败:', error)
-    alert('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'))
-  }
-}
-
-// 查看视频
-const viewVideo = (video) => {
-  // 可以在这里打开一个模态框播放视频
-  const url = getVideoUrl(video.file_path)
-  window.open(url, '_blank')
-}
-
-// 分析视频
-const analyzeVideo = async (video) => {
-  try {
-    const result = await analysisAPI.analyzeVideo(video.id, userStore.userId)
-    alert('AI 分析完成！')
-    router.push(`/analysis/${video.id}`)
   } catch (error) {
     console.error('AI 分析失败:', error)
     alert('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'))
@@ -977,112 +934,6 @@ const handleLogout = () => {
   transform: translateY(-2px);
 }
 
-.videos-section {
-  background: white;
-  padding: 40px;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-}
-
-.videos-section h2 {
-  font-size: 24px;
-  color: #333;
-  margin-bottom: 25px;
-}
-
-.loading,
-.empty-state {
-  text-align: center;
-  padding: 40px;
-  color: #666;
-}
-
-.videos-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 25px;
-}
-
-.video-card {
-  background: #f9f9f9;
-  border-radius: 12px;
-  overflow: hidden;
-  transition: transform 0.3s, box-shadow 0.3s;
-}
-
-.video-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
-.video-thumbnail {
-  width: 100%;
-  height: 180px;
-  background: #000;
-}
-
-.video-thumbnail video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.video-info {
-  padding: 20px;
-}
-
-.video-info h3 {
-  font-size: 16px;
-  color: #333;
-  margin-bottom: 10px;
-}
-
-.video-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-  font-size: 13px;
-  color: #666;
-}
-
-.dance-style {
-  background: #667eea;
-  color: white;
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-}
-
-.video-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.btn-small {
-  flex: 1;
-  padding: 8px;
-  background: #f0f0f0;
-  color: #333;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.btn-small:hover {
-  background: #e0e0e0;
-}
-
-.btn-analyze-small {
-  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-  color: white;
-}
-
-.btn-analyze-small:hover {
-  opacity: 0.9;
-}
-
 /* 移动端适配 */
 @media (max-width: 768px) {
   .navbar {
@@ -1103,8 +954,7 @@ const handleLogout = () => {
     font-size: 26px;
   }
 
-  .upload-section,
-  .videos-section {
+  .upload-section {
     padding: 25px 20px;
   }
 
@@ -1119,10 +969,6 @@ const handleLogout = () => {
 
   .success-actions {
     flex-direction: column;
-  }
-
-  .videos-grid {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -1148,8 +994,7 @@ const handleLogout = () => {
     font-size: 22px;
   }
 
-  .upload-section,
-  .videos-section {
+  .upload-section {
     padding: 20px 15px;
   }
 

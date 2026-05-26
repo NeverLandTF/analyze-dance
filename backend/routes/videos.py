@@ -9,7 +9,7 @@ import os
 
 from models import db, Video, Dancer
 from utils.auth import token_required
-from utils.file_utils import allowed_file
+from utils.file_utils import allowed_file, extract_video_thumbnail, get_video_duration
 
 video_bp = Blueprint('videos', __name__, url_prefix='/api')
 
@@ -68,14 +68,26 @@ def upload_video_file():
     file_path = os.path.join(upload_folder, video_subfolder, unique_filename)
     file.save(file_path)
     
+    # 提取视频封面图（取第 1 秒的帧）
+    thumbnail_filename = f"{uuid.uuid4().hex}.jpg"
+    thumbnail_path = os.path.join(upload_folder, 'images', thumbnail_filename)
+    # 确保 images 目录存在
+    os.makedirs(os.path.join(upload_folder, 'images'), exist_ok=True)
+    
+    thumbnail_generated = extract_video_thumbnail(file_path, thumbnail_path, frame_time=1)
+    thumbnail_url = f'/uploads/images/{thumbnail_filename}' if thumbnail_generated else None
+    
+    # 获取视频时长
+    duration = get_video_duration(file_path)
+    
     # 创建视频记录
     video = Video(
         user_id=int(user_id),
         dancer_id=dancer_id,  # dancer_id 已经是整数了
         title=title,
         file_path=f'/uploads/{video_subfolder}/{unique_filename}',
-        thumbnail_url=None,
-        duration=None,
+        thumbnail_url=thumbnail_url,
+        duration=duration,
         dance_style=dance_style
     )
     
