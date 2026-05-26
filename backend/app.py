@@ -2,11 +2,13 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from datetime import datetime
+from datetime import datetime, timedelta
 import hashlib
 import os
 import uuid
+import jwt
 from werkzeug.utils import secure_filename
+from functools import wraps
 
 app = Flask(__name__)
 CORS(app)
@@ -15,6 +17,11 @@ CORS(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'mysql+pymysql://username:password@localhost/dance_analysis_db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
+
+# JWT 配置
+JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', app.config['SECRET_KEY'])
+JWT_ALGORITHM = 'HS256'
+JWT_EXPIRATION_HOURS = int(os.environ.get('JWT_EXPIRATION_HOURS', 24))
 
 # 文件上传配置 - 从环境变量获取
 UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'uploads')
@@ -36,6 +43,69 @@ os.makedirs(os.path.join(UPLOAD_FOLDER, 'images'), exist_ok=True)  # 图片子�
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
+
+# ==================== JWT 认证相关 ====================
+
+def generate_token(user_id, username, is_admin=False):
+    """生成 JWT token"""
+    payload = {
+        'user_id': user_id,
+        'username': username,
+        'is_admin': is_admin,
+        'exp': datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS),
+        'iat': datetime.utcnow()
+    }
+    return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+
+def verify_token(token):
+    """验证 JWT token，返回解码后的 payload"""
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
+
+
+def token_required(f):
+    """装饰器：要求请求必须携带有效的 JWT token"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        
+        # 从 Authorization header 中获取 token
+        if 'Authorization' in request.headers:
+            auth_header = request.headers['Authorization']
+            if auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
+        
+        if not token:
+            return jsonify({'error': 'Token is missing'}), 401
+        
+        payload = verify_token(token)
+        if payload is None:
+            return jsonify({'error': 'Token is invalid or expired'}), 401
+        
+        # 将用户信息添加到 request 中
+        request.current_user = payload
+        return f(*args, **kwargs)
+    
+    return decorated
+
+
+def admin_required(f):
+    """装饰器：要求用户必须是管理员"""
+    @wraps(f)
+    @token_required
+    def decorated(*args, **kwargs):
+        if not request.current_user.get('is_admin', False):
+            return jsonify({'error': 'Admin access required'}), 403
+        return f(*args, **kwargs)
+    
+    return decorated
 
 
 def allowed_file(filename):
@@ -200,12 +270,15 @@ def login():
     if not user or not user.check_password(data['password']):
         return jsonify({'error': 'Invalid credentials'}), 401
     
-    # 实际项目中应该返回 JWT token
+    # 生成 JWT token
+    token = generate_token(user.id, user.username, user.is_admin)
+    
     return jsonify({
         'message': 'Login successful',
         'user_id': user.id,
         'username': user.username,
-        'is_admin': user.is_admin
+        'is_admin': user.is_admin,
+        'token': token
     })
 
 
@@ -444,8 +517,12 @@ def get_dancer(dancer_id):
 # ===== 视频管理 =====
 
 @app.route('/api/videos/upload', methods=['POST'])
+@token_required
 def upload_video_file():
-    """上传视频文件"""
+    """上传视频文件（需要 JWT 认证）"""
+    # 从 token 中获取当前用户信息
+    current_user = request.current_user
+    
     # 检查是否有文件部分
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
@@ -458,14 +535,18 @@ def upload_video_file():
     if not allowed_file(file.filename):
         return jsonify({'error': 'File type not allowed'}), 400
     
-    # 获取表单数据
-    user_id = request.form.get('user_id')
+    # 获取表单数据（user_id 和 dancer_id 现在可以从 token 中获取，但为了兼容性仍支持表单传递）
+    user_id = request.form.get('user_id') or current_user.get('user_id')
     dancer_id = request.form.get('dancer_id')
     title = request.form.get('title')
     dance_style = request.form.get('dance_style', '')
     
-    if not user_id or not dancer_id or not title:
-        return jsonify({'error': 'Missing required fields (user_id, dancer_id, title)'}), 400
+    if not dancer_id or not title:
+        return jsonify({'error': 'Missing required fields (dancer_id, title)'}), 400
+    
+    # 权限验证：普通用户只能给自己上传视频，管理员可以给任何人上传
+    if not current_user.get('is_admin', False) and int(user_id) != current_user.get('user_id'):
+        return jsonify({'error': 'Permission denied. You can only upload videos for yourself.'}), 403
     
     # 生成唯一的文件名
     original_filename = secure_filename(file.filename)
@@ -526,13 +607,21 @@ def upload_video():
 
 
 @app.route('/api/videos', methods=['GET'])
+@token_required
 def get_videos():
-    """获取视频列表"""
-    user_id = request.args.get('user_id')
+    """获取视频列表（需要 JWT 认证）"""
+    current_user = request.current_user
+    
+    # 从 query 参数或 token 中获取 user_id
+    user_id = request.args.get('user_id') or current_user.get('user_id')
     dancer_id = request.args.get('dancer_id')
     
     if not user_id:
         return jsonify({'error': 'user_id is required'}), 400
+    
+    # 权限验证：普通用户只能查看自己的视频，管理员可以查看所有视频
+    if not current_user.get('is_admin', False) and int(user_id) != current_user.get('user_id'):
+        return jsonify({'error': 'Permission denied. You can only view your own videos.'}), 403
     
     query = Video.query.filter_by(user_id=int(user_id))
     
@@ -556,9 +645,16 @@ def get_videos():
 
 
 @app.route('/api/videos/<int:video_id>', methods=['GET'])
+@token_required
 def get_video(video_id):
-    """获取单个视频详情"""
+    """获取单个视频详情（需要 JWT 认证）"""
+    current_user = request.current_user
+    
     video = Video.query.get_or_404(video_id)
+    
+    # 权限验证：普通用户只能查看自己的视频，管理员可以查看所有视频
+    if not current_user.get('is_admin', False) and video.user_id != current_user.get('user_id'):
+        return jsonify({'error': 'Permission denied. You can only view your own videos.'}), 403
     
     return jsonify({
         'id': video.id,
