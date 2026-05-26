@@ -108,6 +108,9 @@
               <button @click="viewAnalysisResult(video)" class="btn-small btn-view-small" v-if="hasAnalysis(video)">
                 📊 查看结果
               </button>
+              <button @click="confirmDeleteVideo(video)" class="btn-small btn-delete-small">
+                🗑️ 删除
+              </button>
             </div>
           </div>
         </div>
@@ -304,6 +307,23 @@ const viewAnalysisResult = (video) => {
 const viewCurrentAnalysis = () => {
   if (!currentVideo.value) return
   viewAnalysisResult(currentVideo.value)
+}
+
+// 删除视频确认
+const confirmDeleteVideo = async (video) => {
+  if (!confirm(`确定要删除视频"${video.title}"吗？删除后分析记录也将被同步删除，此操作不可恢复。`)) {
+    return
+  }
+  
+  try {
+    await videoAPI.deleteVideo(video.id)
+    alert('视频已删除')
+    // 重新加载视频列表
+    await loadVideos()
+  } catch (error) {
+    console.error('删除视频失败:', error)
+    alert('删除失败：' + (error.response?.data?.error || '请稍后重试'))
+  }
 }
 
 const handleLogout = () => {
@@ -712,6 +732,15 @@ const handleLogout = () => {
 
 .btn-view-small:hover {
   background: #c8e6c9;
+}
+
+.btn-delete-small {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.btn-delete-small:hover {
+  background: #ffcdd2;
 }
 
 /* 预览弹窗样式 */

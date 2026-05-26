@@ -141,14 +141,6 @@
           </div>
         </div>
         
-        <!-- 上传进度 -->
-        <div v-if="uploading" class="upload-progress">
-          <div class="progress-bar">
-            <div class="progress-fill" :style="{ width: uploadProgress + '%' }"></div>
-          </div>
-          <div class="progress-text">{{ uploadProgress }}%</div>
-        </div>
-        
         <!-- 操作按钮 -->
         <div class="actions">
           <button @click="handleUpload" :disabled="!canUpload || uploading" class="btn-primary">
@@ -251,7 +243,6 @@ const fileInput = ref(null)
 
 // 上传状态
 const uploading = ref(false)
-const uploadProgress = ref(0)
 const fileProgressMap = ref({}) // 存储每个文件的上传进度
 const uploadError = ref('')
 const uploadedVideo = ref(null)
@@ -395,7 +386,6 @@ const handleUpload = async () => {
   if (!canUpload.value) return
   
   uploading.value = true
-  uploadProgress.value = 0
   fileProgressMap.value = {} // 重置每个文件的进度
   uploadError.value = ''
   uploadedVideo.value = null
@@ -423,9 +413,6 @@ const handleUpload = async () => {
           (progress) => {
             // 更新该文件的进度
             fileProgressMap.value[index] = progress
-            // 计算总体进度（用于顶部总进度条）
-            const totalProgress = Object.values(fileProgressMap.value).reduce((sum, p) => sum + p, 0) / totalFiles
-            uploadProgress.value = Math.round(totalProgress)
           }
         ).then(resolve).catch(reject)
       })
@@ -434,7 +421,6 @@ const handleUpload = async () => {
     const results = await Promise.all(uploadPromises)
     
     uploadedVideo.value = results // 保存所有上传成功的视频
-    uploadProgress.value = 100
     
     // 不再加载视频列表，因为已删除该部分 UI
   } catch (error) {
@@ -458,7 +444,6 @@ const resetForm = () => {
   selectedFiles.value = []
   uploadError.value = ''
   uploadedVideo.value = null
-  uploadProgress.value = 0
   
   // 清空 file input 的值，这样即使选择相同的文件也能触发 change 事件
   if (fileInput.value) {
@@ -924,30 +909,6 @@ const handleLogout = () => {
 .btn-remove:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-.upload-progress {
-  margin: 20px 0;
-}
-
-.progress-bar {
-  height: 8px;
-  background: #f0f0f0;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 8px;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  transition: width 0.3s;
-}
-
-.progress-text {
-  text-align: center;
-  color: #666;
-  font-size: 14px;
 }
 
 .actions {

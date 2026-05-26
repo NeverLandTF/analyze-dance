@@ -98,3 +98,39 @@ def analyze_video():
         'results': analysis_result,
         'token_usage': token_usage  # 返回 token 使用量给前端
     })
+
+
+@analysis_bp.route('/analysis/history', methods=['GET'])
+@token_required
+def get_analysis_history():
+    """获取用户的分析历史列表"""
+    current_user = request.current_user
+    
+    # 从 query 参数或 token 中获取 user_id
+    user_id = request.args.get('user_id') or current_user.get('user_id')
+    
+    if not user_id:
+        return jsonify({'error': 'user_id is required'}), 400
+    
+    # 权限验证：普通用户只能查看自己的分析记录，管理员可以查看所有
+    if not current_user.get('is_admin', False) and int(user_id) != current_user.get('user_id'):
+        return jsonify({'error': 'Permission denied. You can only view your own analysis history.'}), 403
+    
+    # 查询分析记录，关联视频信息
+    analyses = db.session.query(Analysis, Video).join(Video).filter(
+        Video.user_id == int(user_id)
+    ).order_by(Analysis.processed_at.desc()).all()
+    
+    return jsonify({
+        'analyses': [{
+            'id': a.id,
+            'video_id': a.video_id,
+            'video_title': v.title,
+            'thumbnail_url': v.thumbnail_url,
+            'dance_style': v.dance_style,
+            'analyzed_at': a.processed_at.isoformat() if a.processed_at else None,
+            'overall_score': a.result_data.get('overall_score', 0) if a.result_data else 0,
+            'summary': a.result_data.get('summary', '') if a.result_data else '',
+            'analysis_type': a.analysis_type
+        } for a, v in analyses]
+    })
