@@ -28,7 +28,7 @@ UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'uploads')
 AVATAR_FOLDER = os.path.join(UPLOAD_FOLDER, 'avatars')  # 头像放在 uploads/avatars 子目录下
 ALLOWED_EXTENSIONS = os.environ.get('ALLOWED_EXTENSIONS', 'mp4,avi,mov,mkv,webm').split(',')
 ALLOWED_IMAGE_EXTENSIONS = os.environ.get('ALLOWED_IMAGE_EXTENSIONS', 'jpg,jpeg,png,gif,bmp,webp').split(',')
-MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 500 * 1024 * 1024))  # 默认 500MB
+MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 1024 * 1024 * 1024))  # 默认 1GB
 MAX_AVATAR_SIZE = int(os.environ.get('MAX_AVATAR_SIZE', 5 * 1024 * 1024))  # 默认 5MB
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -559,11 +559,21 @@ def upload_video_file():
     # 获取表单数据（user_id 和 dancer_id 现在可以从 token 中获取，但为了兼容性仍支持表单传递）
     user_id = request.form.get('user_id') or current_user.get('user_id')
     dancer_id = request.form.get('dancer_id')
+    if dancer_id:
+        dancer_id = int(dancer_id)  # 转换为整数
     title = request.form.get('title')
     dance_style = request.form.get('dance_style', '')
     
-    if not dancer_id or not title:
-        return jsonify({'error': 'Missing required fields (dancer_id, title)'}), 400
+    if not title:
+        return jsonify({'error': 'Missing required field (title)'}), 400
+    
+    # 如果没有提供 dancer_id，尝试获取用户的默认舞者（即 user_id 对应的第一个舞者）
+    if not dancer_id:
+        default_dancer = Dancer.query.filter_by(user_id=int(user_id)).first()
+        if default_dancer:
+            dancer_id = default_dancer.id
+        else:
+            return jsonify({'error': 'No dancer found for this user. Please create a dancer profile first.'}), 400
     
     # 权限验证：普通用户只能给自己上传视频，管理员可以给任何人上传
     if not current_user.get('is_admin', False) and int(user_id) != current_user.get('user_id'):
@@ -582,7 +592,7 @@ def upload_video_file():
     # 创建视频记录
     video = Video(
         user_id=int(user_id),
-        dancer_id=int(dancer_id),
+        dancer_id=dancer_id,  # dancer_id 已经是整数了
         title=title,
         file_path=f'/uploads/{video_subfolder}/{unique_filename}',
         thumbnail_url=None,

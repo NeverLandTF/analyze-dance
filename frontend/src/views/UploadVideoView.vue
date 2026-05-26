@@ -110,6 +110,10 @@
             </button>
           </div>
           <div v-else class="file-list">
+            <!-- 继续添加文件按钮 -->
+            <button @click="fileInput.click()" class="btn-add-more" :disabled="uploading">
+              ➕ 继续添加文件
+            </button>
             <div v-for="(file, index) in selectedFiles" :key="index" class="file-info">
               <div class="file-icon">🎬</div>
               <div class="file-details">
@@ -279,9 +283,9 @@ const loadUsers = async () => {
         selectedDancerId.value = users.value[0].id
       }
     } else {
-      // 普通用户直接设置自己的 ID
+      // 普通用户直接设置自己的 ID，不需要传递 dancer_id，后端会自动获取
       users.value = [{ id: userStore.userId, username: userStore.user?.username }]
-      selectedDancerId.value = userStore.userId
+      selectedDancerId.value = null  // 设置为 null，让后端自动获取默认舞者
     }
   } catch (error) {
     console.error('加载用户列表失败:', error)
@@ -394,10 +398,13 @@ const handleUpload = async () => {
     const uploadPromises = selectedFiles.value.map((file, index) => {
       // 自动生成带索引的标题
       const autoTitle = getAutoTitle(index)
+      // 普通用户不需要传递 dancer_id，后端会自动获取默认舞者
+      const dancerIdParam = userStore.isAdmin ? selectedDancerId.value : null
+      
       return videoAPI.uploadVideoFile(
         file,
         userStore.userId,
-        selectedDancerId.value || userStore.userId,
+        dancerIdParam,  // 传递 null 让后端自动获取
         autoTitle,
         danceStyle.value
       )
@@ -419,11 +426,11 @@ const handleUpload = async () => {
 
 // 重置表单
 const resetForm = () => {
-  // 管理员重置为第一个用户，普通用户重置为自己
+  // 管理员重置为第一个用户，普通用户重置为 null（后端会自动获取）
   if (userStore.isAdmin) {
     selectedDancerId.value = users.value.length > 0 ? users.value[0].id : null
   } else {
-    selectedDancerId.value = userStore.userId
+    selectedDancerId.value = null  // 普通用户设置为 null，让后端自动获取
   }
   videoTitle.value = ''
   danceStyle.value = ''
@@ -432,6 +439,14 @@ const resetForm = () => {
   uploadedVideo.value = null
   uploadProgress.value = 0
   
+  // 清空 file input 的值，这样即使选择相同的文件也能触发 change 事件
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
+}
+
+// 处理上传成功后清空文件选择，允许重新选择
+const clearFileSelection = () => {
   if (fileInput.value) {
     fileInput.value.value = ''
   }
@@ -752,6 +767,30 @@ const handleLogout = () => {
 .file-list {
   max-height: 400px;
   overflow-y: auto;
+}
+
+.btn-add-more {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 15px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-add-more:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-add-more:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .file-title-preview {
