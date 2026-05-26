@@ -86,10 +86,10 @@
           <p>上传新的舞蹈视频，支持多种街舞风格</p>
         </div>
         
-        <div class="feature-card">
+        <div class="feature-card" @click="$router.push('/analysis-history')">
           <div class="feature-icon">🤖</div>
           <h3>AI 分析</h3>
-          <p>大模型驱动的动作识别与评分</p>
+          <p>查看 AI 分析历史记录，点击某次分析进入详情</p>
         </div>
         
         <div class="feature-card">

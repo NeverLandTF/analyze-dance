@@ -54,6 +54,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/analysis-history',
+    name: 'AnalysisHistory',
+    component: () => import('../views/AnalysisHistoryView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/progress/:dancerId',
     name: 'ProgressTracking',
     component: () => import('../views/ProgressTrackingView.vue'),

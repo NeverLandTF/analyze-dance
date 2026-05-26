@@ -121,6 +121,11 @@ export const videoAPI = {
     return api.get(`/videos/${videoId}`)
   },
   
+  // 删除视频
+  deleteVideo(videoId) {
+    return api.delete(`/videos/${videoId}`)
+  },
+  
   // 上传视频（元数据方式，兼容旧接口）
   uploadVideo(videoData) {
     return api.post('/videos', videoData)
@@ -136,6 +141,11 @@ export const analysisAPI = {
   // 获取视频分析结果
   getAnalysisResults(videoId) {
     return api.get(`/videos/${videoId}`).then(res => res.analyses || [])
+  },
+
+  // 获取分析历史列表
+  getAnalysisHistory(userId) {
+    return api.get(`/analysis/history?user_id=${userId}`)
   }
 }
 

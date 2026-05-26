@@ -248,3 +248,37 @@ def get_video(video_id):
             'processed_at': a.processed_at.isoformat() if a.processed_at else None
         } for a in video.analyses]
     })
+
+
+@video_bp.route('/videos/<int:video_id>', methods=['DELETE'])
+@token_required
+def delete_video(video_id):
+    """删除视频及其关联的分析记录（需要 JWT 认证）"""
+    current_user = request.current_user
+    
+    video = Video.query.get_or_404(video_id)
+    
+    # 权限验证：普通用户只能删除自己的视频，管理员可以删除任何视频
+    if not current_user.get('is_admin', False) and video.user_id != current_user.get('user_id'):
+        return jsonify({'error': 'Permission denied. You can only delete your own videos.'}), 403
+    
+    # 删除视频文件（可选，如果需要物理删除文件）
+    try:
+        upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+        file_path = os.path.join(upload_folder, video.file_path.lstrip('/'))
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        # 删除封面图
+        if video.thumbnail_url:
+            thumbnail_path = os.path.join(upload_folder, video.thumbnail_url.lstrip('/'))
+            if os.path.exists(thumbnail_path):
+                os.remove(thumbnail_path)
+    except Exception as e:
+        print(f'删除文件失败：{e}')
+    
+    # 删除数据库记录（由于 cascade='all, delete-orphan'，关联的 Analysis 记录会自动删除）
+    db.session.delete(video)
+    db.session.commit()
+    
+    return jsonify({'message': 'Video deleted successfully'})
