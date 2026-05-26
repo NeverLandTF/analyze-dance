@@ -53,6 +53,11 @@ export const userAPI = {
   // 获取用户详情
   getUser(userId) {
     return api.get(`/users/${userId}`)
+  },
+
+  // 删除用户（仅管理员）
+  deleteUser(userId) {
+    return api.delete(`/users/${userId}`)
   }
 }
 
