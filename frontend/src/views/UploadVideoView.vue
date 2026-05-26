@@ -67,13 +67,18 @@
         <!-- 视频标题 -->
         <div class="form-group">
           <label>视频标题</label>
-          <input 
-            type="text" 
-            v-model="videoTitle" 
-            placeholder="输入视频标题"
-            class="form-input"
-            :disabled="uploading"
-          />
+          <div class="title-input-group">
+            <input 
+              type="text" 
+              v-model="videoTitle" 
+              placeholder="输入视频标题"
+              class="form-input"
+              :disabled="uploading"
+            />
+            <button @click="generateTimestampTitle" type="button" class="btn-timestamp" :disabled="uploading">
+              🕐 生成时间戳标题
+            </button>
+          </div>
         </div>
         
         <!-- 舞蹈风格 -->
@@ -308,6 +313,18 @@ const validateAndSetFiles = (files) => {
 // 移除单个文件
 const removeFile = (index) => {
   selectedFiles.value.splice(index, 1)
+}
+
+// 生成时间戳标题
+const generateTimestampTitle = () => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  const seconds = String(now.getSeconds()).padStart(2, '0')
+  videoTitle.value = `视频_${year}${month}${day}_${hours}${minutes}${seconds}`
 }
 
 // 自动生成标题（带索引）
@@ -657,6 +674,38 @@ const handleLogout = () => {
 .form-input:focus {
   outline: none;
   border-color: #667eea;
+}
+
+.title-input-group {
+  display: flex;
+  gap: 10px;
+}
+
+.title-input-group .form-input {
+  flex: 1;
+}
+
+.btn-timestamp {
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: transform 0.2s, box-shadow 0.2s;
+  white-space: nowrap;
+}
+
+.btn-timestamp:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-timestamp:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .upload-area {
