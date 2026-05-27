@@ -75,7 +75,7 @@
             <button 
               v-for="option in timeFilterOptions" 
               :key="option.value"
-              @click="selectedTimeFilter = option.value"
+              @click="handleTimeFilterChange(option.value)"
               :class="['filter-btn', { active: selectedTimeFilter === option.value }]"
             >
               {{ option.label }}
@@ -110,14 +110,14 @@
       </div>
       
       <!-- 视频列表 -->
-      <div v-if="loading" class="loading">加载中...</div>
-      <div v-else-if="filteredVideos.length === 0" class="empty-state">
+      <div v-if="loading && videos.length === 0" class="loading">加载中...</div>
+      <div v-else-if="videos.length === 0" class="empty-state">
         <div class="empty-icon">📹</div>
-        <p>{{ videos.length === 0 ? '暂无上传的视频' : '当前筛选条件下没有视频' }}</p>
+        <p>{{ '暂无上传的视频' }}</p>
         <button @click="$router.push('/upload')" class="btn-secondary">去上传第一个视频</button>
       </div>
       <div v-else class="videos-grid">
-        <div v-for="video in filteredVideos" :key="video.id" class="video-card">
+        <div v-for="video in videos" :key="video.id" class="video-card">
           <div class="video-thumbnail" @click="openPreviewModal(video)">
             <!-- 仅显示封面图，不加载视频内容 -->
             <img 
@@ -167,6 +167,10 @@
           </div>
         </div>
       </div>
+      
+      <!-- 滚动加载更多 -->
+      <div v-if="isLoadingMore" class="loading-more">加载中...</div>
+      <div v-else-if="hasMore && videos.length > 0" class="load-more-trigger" ref="loadMoreTrigger"></div>
     </main>
     
     <!-- 视频预览弹窗 -->
@@ -223,7 +227,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, inject, computed } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, inject, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { videoAPI, analysisAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
@@ -247,20 +251,69 @@ const handleClickOutside = (event) => {
   }
 }
 
+// 滚动加载更多相关
+const loadMoreTrigger = ref(null)
+let observer = null
+
+const setupInfiniteScroll = () => {
+  // 清理旧的观察者
+  if (observer) {
+    observer.disconnect()
+  }
+  
+  // 创建 Intersection Observer
+  observer = new IntersectionObserver((entries) => {
+    const entry = entries[0]
+    if (entry.isIntersecting && hasMore.value && !isLoadingMore.value) {
+      loadMoreVideos()
+    }
+  }, {
+    rootMargin: '100px' // 提前 100px 开始加载
+  })
+  
+  // 观察触发元素
+  nextTick(() => {
+    if (loadMoreTrigger.value) {
+      observer.observe(loadMoreTrigger.value)
+    }
+  })
+}
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
-  loadVideos()
+  loadVideos().then(() => {
+    // 初始加载后设置无限滚动
+    setupInfiniteScroll()
+  })
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  if (observer) {
+    observer.disconnect()
+  }
 })
+
+// 监听筛选条件变化，重新加载视频并重置滚动
+const watchFilterChange = () => {
+  // 当时间筛选条件改变时，会触发 applyDateRange 或 clearDateRange，它们已经调用了 loadVideos
+  // loadVideos 会重置 currentPage 和 videos 数组，然后 setupInfiniteScroll 会重新设置观察者
+  nextTick(() => {
+    setupInfiniteScroll()
+  })
+}
 
 // 视频列表相关
 const videos = ref([])
 const loading = ref(false)
 // 记录每个视频的分析状态
 const analyzingVideos = reactive({})
+
+// 分页相关
+const currentPage = ref(1)
+const perPage = 10
+const hasMore = ref(true)
+const isLoadingMore = ref(false)
 
 // 时间过滤相关
 const selectedTimeFilter = ref('all')
@@ -278,18 +331,82 @@ const showPreviewModal = ref(false)
 const currentVideo = ref(null)
 const videoPlayer = ref(null)
 
+// 获取当前筛选条件下的日期范围
+const getDateRangeFromFilter = () => {
+  // 如果有自定义日期范围，优先使用
+  if (startDate.value && endDate.value) {
+    return { startDate: startDate.value, endDate: endDate.value }
+  }
+  
+  const now = new Date()
+  
+  // 根据预设的时间选项计算日期范围
+  if (selectedTimeFilter.value === 'all') {
+    return {}
+  }
+  
+  const daysMap = {
+    '7days': 7,
+    '30days': 30,
+    '90days': 90
+  }
+  
+  const days = daysMap[selectedTimeFilter.value]
+  if (!days) return {}
+  
+  const cutoffDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
+  return {
+    startDate: cutoffDate.toISOString().split('T')[0],
+    endDate: now.toISOString().split('T')[0]
+  }
+}
+
 // 加载视频列表 - 仅获取基本信息（封面、标题等），不加载视频内容
-const loadVideos = async () => {
+const loadVideos = async (isLoadMore = false) => {
   try {
-    loading.value = true
-    const response = await videoAPI.getVideos(userStore.userId)
-    videos.value = response.videos || []
+    if (isLoadMore) {
+      isLoadingMore.value = true
+    } else {
+      loading.value = true
+      currentPage.value = 1
+      videos.value = []
+    }
+    
+    const dateRange = getDateRangeFromFilter()
+    const response = await videoAPI.getVideos(userStore.userId, null, {
+      page: currentPage.value,
+      perPage: perPage,
+      ...dateRange
+    })
+    
+    const newVideos = response.videos || []
+    
+    if (isLoadMore) {
+      videos.value = [...videos.value, ...newVideos]
+    } else {
+      videos.value = newVideos
+    }
+    
+    // 判断是否还有更多数据
+    hasMore.value = response.pagination?.has_next || false
+    
   } catch (error) {
     console.error('加载视频列表失败:', error)
-    videos.value = []
+    if (!isLoadMore) {
+      videos.value = []
+    }
   } finally {
     loading.value = false
+    isLoadingMore.value = false
   }
+}
+
+// 加载更多视频（滚动加载）
+const loadMoreVideos = async () => {
+  if (isLoadingMore.value || !hasMore.value) return
+  
+  currentPage.value++
+  await loadVideos(true)
 }
 
 // 根据时间过滤条件过滤视频
@@ -332,21 +449,31 @@ const filterVideosByTime = (videos) => {
   })
 }
 
-// 应用自定义日期范围
-const applyDateRange = () => {
-  selectedTimeFilter.value = 'custom'
-}
-
 // 清除自定义日期范围
 const clearDateRange = () => {
   startDate.value = ''
   endDate.value = ''
   selectedTimeFilter.value = 'all'
+  // 重新加载视频列表
+  loadVideos()
 }
 
-// 计算后的视频列表
+// 应用自定义日期范围
+const applyDateRange = () => {
+  selectedTimeFilter.value = 'custom'
+  // 重新加载视频列表
+  loadVideos()
+}
+
+// 监听时间筛选器变化
+const handleTimeFilterChange = (value) => {
+  selectedTimeFilter.value = value
+  loadVideos()
+}
+
+// 计算后的视频列表（由于后端已经处理了时间过滤，这里直接返回 videos）
 const filteredVideos = computed(() => {
-  return filterVideosByTime(videos.value)
+  return videos.value
 })
 
 // 获取封面图 URL
