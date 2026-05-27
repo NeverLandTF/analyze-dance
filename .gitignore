@@ -1,5 +1,1 @@
-```
-# Backup and temporary files
-*.bak
-*.fixed
-```
+Nothing should be ignored based on the provided file changes, as only a Vue component file was modified without any build artifacts, dependencies, or temporary files present in the change list.

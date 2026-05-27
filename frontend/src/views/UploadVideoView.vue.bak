@@ -620,6 +620,7 @@ const handleAnalyze = async () => {
   
     const videoUrl = getVideoUrl(video.file_path)
     const result = await analysisAPI.analyzeVideo(video.id, userStore.userId, videoUrl)
+    const result = await analysisAPI.analyzeVideo(video.id, userStore.userId)
     // 分析成功后，更新视频的分析状态为 completed
     video.analysis_status = 'completed'
   } catch (error) {
