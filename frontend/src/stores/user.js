@@ -14,7 +14,11 @@ export const useUserStore = defineStore('user', () => {
   }
   
   const isLoggedIn = computed(() => !!token.value)
-  const userId = computed(() => user.value?.id || null)
+  const userId = computed(() => {
+    const id = user.value?.id || null
+    console.log('userId computed:', id, 'user.value:', user.value)
+    return id
+  })
   
   function setUser(userData, authToken, adminStatus = false) {
     user.value = userData
