@@ -183,8 +183,8 @@ class AIAnalysisService:
         
         # 根据示例代码，使用视频 URL 的方式传入
         content_items.append({
-            "type": "video",
-            "video": [video_url]  # 使用视频 URL 列表
+            "type": "video_url",
+            "video_url": [video_url]  # 使用视频 URL 列表
         })
         
         # 添加文本提示
