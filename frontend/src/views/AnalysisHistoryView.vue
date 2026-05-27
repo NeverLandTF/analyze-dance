@@ -121,7 +121,13 @@
       </div>
 
       <div v-else class="analyses-list">
-        <div v-for="item in analyses" :key="item.id" class="analysis-card" @click="viewAnalysisDetail(item)">
+        <div 
+          v-for="item in analyses" 
+          :key="item.id" 
+          :id="`analysis-${item.id}`"
+          class="analysis-card" 
+          @click="viewAnalysisDetail(item)"
+        >
           <div class="analysis-thumbnail">
             <img 
               v-if="item.thumbnail_url" 
@@ -163,12 +169,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { analysisAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 // 用户菜单相关
@@ -187,8 +194,31 @@ const handleClickOutside = (event) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
-  loadAnalyses()
+  loadAnalyses().then(() => {
+    // 加载完成后，检查是否有 hash 用于滚动定位
+    scrollToAnalysisFromHash()
+  })
 })
+
+// 根据 URL hash 滚动到对应的分析记录
+const scrollToAnalysisFromHash = () => {
+  const hash = route.hash
+  if (hash && hash.startsWith('#analysis-')) {
+    const analysisId = hash.replace('#analysis-', '')
+    nextTick(() => {
+      const element = document.getElementById(`analysis-${analysisId}`)
+      if (element) {
+        // 平滑滚动到元素位置
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        // 添加一个高亮效果，持续 2 秒
+        element.classList.add('highlight-animation')
+        setTimeout(() => {
+          element.classList.remove('highlight-animation')
+        }, 2000)
+      }
+    })
+  }
+}
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
@@ -801,13 +831,41 @@ const handleScroll = (event) => {
   display: flex;
   gap: 20px;
   cursor: pointer;
-  transition: transform 0.3s, box-shadow 0.3s;
+  transition: transform 0.3s, box-shadow 0.3s, background-color 0.5s;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
 }
 
 .analysis-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* 高亮动画效果 */
+.analysis-card.highlight-animation {
+  animation: highlight-pulse 2s ease-in-out;
+}
+
+@keyframes highlight-pulse {
+  0% {
+    background-color: white;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  }
+  20% {
+    background-color: #e8eaf6;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+  }
+  40% {
+    background-color: #fff;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  }
+  60% {
+    background-color: #e8eaf6;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+  }
+  100% {
+    background-color: white;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  }
 }
 
 .analysis-thumbnail {
