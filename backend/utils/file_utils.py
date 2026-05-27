@@ -79,6 +79,75 @@ def extract_video_thumbnail(video_path, thumbnail_path, frame_time=1):
         return False
 
 
+def extract_video_frames(video_path, output_dir, num_frames=8):
+    """
+    使用 ffmpeg 从视频中提取多帧图片，用于大模型视频分析
+    
+    Args:
+        video_path: 视频文件路径
+        output_dir: 输出图片的目录
+        num_frames: 提取的帧数，默认 8 帧
+    
+    Returns:
+        list: 生成的图片文件路径列表，按时间顺序排列
+    """
+    try:
+        # 首先获取视频时长
+        duration = get_video_duration(video_path)
+        if not duration or duration <= 0:
+            print("无法获取视频时长")
+            return []
+        
+        # 确保输出目录存在
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # 计算帧间隔时间，均匀分布在整个视频中
+        # 从视频的 10% 处开始，到 90% 处结束，避免开头和结尾的黑屏
+        start_time = duration * 0.1
+        end_time = duration * 0.9
+        interval = (end_time - start_time) / (num_frames - 1) if num_frames > 1 else 0
+        
+        frame_paths = []
+        
+        for i in range(num_frames):
+            # 计算当前帧的时间点
+            if num_frames == 1:
+                frame_time = duration / 2
+            else:
+                frame_time = start_time + (i * interval)
+            
+            # 生成唯一的文件名
+            frame_filename = f"frame_{i:03d}_{int(frame_time * 1000):06d}ms.jpg"
+            frame_path = os.path.join(output_dir, frame_filename)
+            
+            # 使用 ffmpeg 提取指定时间的帧
+            cmd = [
+                'ffmpeg',
+                '-ss', str(frame_time),
+                '-i', video_path,
+                '-vframes', '1',
+                '-vf', 'scale=1280:-1',  # 较高的分辨率以便大模型分析
+                '-y',
+                frame_path
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            
+            if result.returncode == 0 and os.path.exists(frame_path):
+                frame_paths.append(frame_path)
+            else:
+                print(f"Failed to extract frame at {frame_time}s: {result.stderr}")
+        
+        return frame_paths
+        
+    except subprocess.TimeoutExpired:
+        print("Frame extraction timed out")
+        return []
+    except Exception as e:
+        print(f"Error extracting frames: {e}")
+        return []
+
+
 def get_video_duration(video_path):
     """
     使用 ffprobe 获取视频时长（秒）
