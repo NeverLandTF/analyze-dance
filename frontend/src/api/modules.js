@@ -134,8 +134,8 @@ export const videoAPI = {
 
 export const analysisAPI = {
   // 分析视频
-  analyzeVideo(videoId, userId) {
-    return api.post('/analyze', { video_id: videoId, user_id: userId })
+  analyzeVideo(videoId, userId, videoUrl) {
+    return api.post('/analyze', { video_id: videoId, user_id: userId, video_url: videoUrl })
   },
   
   // 获取视频分析结果
