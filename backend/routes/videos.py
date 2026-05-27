@@ -4,6 +4,7 @@
 """
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
+from datetime import datetime
 import uuid
 import os
 
@@ -151,7 +152,7 @@ def upload_video():
 @video_bp.route('/videos', methods=['GET'])
 @token_required
 def get_videos():
-    """获取视频列表（需要 JWT 认证）- 仅返回基本信息和封面"""
+    """获取视频列表（需要 JWT 认证）- 仅返回基本信息和封面，支持时间过滤和分页"""
     current_user = request.current_user
     
     # 从 query 参数或 token 中获取 user_id
@@ -165,15 +166,46 @@ def get_videos():
     if not current_user.get('is_admin', False) and int(user_id) != current_user.get('user_id'):
         return jsonify({'error': 'Permission denied. You can only view your own videos.'}), 403
     
+    # 时间过滤参数
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
     query = Video.query.filter_by(user_id=int(user_id))
     
     if dancer_id:
         query = query.filter_by(dancer_id=int(dancer_id))
     
-    videos = query.order_by(Video.upload_date.desc()).all()
+    # 应用时间过滤
+    if start_date:
+        try:
+            start = datetime.fromisoformat(start_date)
+            query = query.filter(Video.upload_date >= start)
+        except ValueError:
+            pass
     
-    # 仅返回基本信息（封面、标题等），不加载视频内容
-    return jsonify({
+    if end_date:
+        try:
+            # 包含结束日期的整天
+            end = datetime.fromisoformat(end_date)
+            end = end.replace(hour=23, minute=59, second=59, microsecond=999999)
+            query = query.filter(Video.upload_date <= end)
+        except ValueError:
+            pass
+    
+    # 分页参数
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    # 限制每页最大数量
+    per_page = min(per_page, 50)
+    
+    # 执行分页查询
+    pagination = query.order_by(Video.upload_date.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    videos = pagination.items
+    
+    # 构建响应
+    response = {
         'videos': [{
             'id': v.id,
             'title': v.title,
@@ -183,9 +215,18 @@ def get_videos():
             'upload_date': v.upload_date.isoformat() if v.upload_date else None,
             'dance_style': v.dance_style,
             'dancer_id': v.dancer_id
-            # 注意：不返回 analyses，以减少数据传输
-        } for v in videos]
-    })
+        } for v in videos],
+        'pagination': {
+            'page': page,
+            'per_page': per_page,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'has_next': pagination.has_next,
+            'has_prev': pagination.has_prev
+        }
+    }
+    
+    return jsonify(response)
 
 
 @video_bp.route('/videos/summary', methods=['GET'])

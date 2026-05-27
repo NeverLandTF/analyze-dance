@@ -73,12 +73,11 @@
         <div class="filter-group">
           <label class="filter-label">📅 按时间筛选：</label>
           <div class="time-filters">
-            <button 
-              v-for="option in timeFilterOptions" 
+            <button
+              v-for="option in timeFilterOptions"
               :key="option.value"
-              @click="selectedTimeFilter = option.value"
-              :class="['filter-btn', { active: selectedTimeFilter === option.value }]"
-            >
+              @click="handleTimeFilterChange(option.value)"
+              :class="['filter-btn', { active: selectedTimeFilter === option.value }]">
               {{ option.label }}
             </button>
           </div>
@@ -87,18 +86,18 @@
           <label class="filter-label">自定义范围：</label>
           <div class="date-range-inputs">
             <div class="date-input-wrapper">
-              <input 
-                type="date" 
-                v-model="startDate" 
+              <input
+                type="date"
+                v-model="startDate"
                 class="date-input"
                 :max="endDate || new Date().toISOString().split('T')[0]"
               />
             </div>
             <span class="date-separator">至</span>
             <div class="date-input-wrapper">
-              <input 
-                type="date" 
-                v-model="endDate" 
+              <input
+                type="date"
+                v-model="endDate"
                 class="date-input"
                 :min="startDate"
                 :max="new Date().toISOString().split('T')[0]"
@@ -110,16 +109,19 @@
         </div>
       </div>
       
-      <div v-if="loading" class="loading">加载中...</div>
+      <!-- 滚动加载容器 -->
+      <div ref="scrollContainer" class="scroll-container" @scroll="handleScroll">
       
-      <div v-else-if="filteredAnalyses.length === 0" class="empty-state">
+      <div v-if="loading && analyses.length === 0" class="loading">加载中...</div>
+
+      <div v-else-if="analyses.length === 0 && !loading" class="empty-state">
         <div class="empty-icon">📊</div>
-        <p>{{ analyses.length === 0 ? '暂无 AI 分析记录' : '当前筛选条件下没有分析记录' }}</p>
+        <p>{{ '暂无 AI 分析记录' }}</p>
         <button @click="$router.push('/upload')" class="btn-primary">去上传视频并分析</button>
       </div>
-      
+
       <div v-else class="analyses-list">
-        <div v-for="item in filteredAnalyses" :key="item.id" class="analysis-card" @click="viewAnalysisDetail(item.video_id)">
+        <div v-for="item in analyses" :key="item.id" class="analysis-card" @click="viewAnalysisDetail(item.video_id)">
           <div class="analysis-thumbnail">
             <img 
               v-if="item.thumbnail_url" 
@@ -152,14 +154,18 @@
           </div>
         </div>
       </div>
+      <!-- 滚动加载提示 -->
+      <div v-if="loadingMore" class="loading-more">加载中...</div>
+      <div v-if="!hasMore && analyses.length > 0" class="no-more">没有更多了</div>
+    </div>
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { analysisAPI, videoAPI } from '../api/modules'
+import { analysisAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
@@ -190,6 +196,10 @@ onUnmounted(() => {
 
 const analyses = ref([])
 const loading = ref(true)
+const loadingMore = ref(false)
+const hasMore = ref(true)
+const currentPage = ref(1)
+const perPage = ref(10)
 
 // 时间过滤相关
 const selectedTimeFilter = ref('all')
@@ -202,63 +212,90 @@ const timeFilterOptions = [
   { label: '最近 90 天', value: '90days' }
 ]
 
-// 加载分析历史列表
-const loadAnalyses = async () => {
+// 加载分析历史列表（支持分页和滚动加载）
+const loadAnalyses = async (isLoadMore = false) => {
   try {
-    loading.value = true
-    const result = await analysisAPI.getAnalysisHistory(userStore.userId)
-    analyses.value = result.analyses || []
+    if (isLoadMore) {
+      loadingMore.value = true
+    } else {
+      loading.value = true
+      currentPage.value = 1
+      analyses.value = []
+    }
+    
+    const params = {
+      page: currentPage.value,
+      perPage: perPage.value
+    }
+    
+    // 添加时间过滤参数
+    if (startDate.value && endDate.value) {
+      params.startDate = startDate.value
+      params.endDate = endDate.value
+    } else if (selectedTimeFilter.value !== 'all') {
+      const dateRange = getDateRangeFromFilter(selectedTimeFilter.value)
+      if (dateRange.start && dateRange.end) {
+        params.startDate = dateRange.start
+        params.endDate = dateRange.end
+      }
+    }
+    
+    const result = await analysisAPI.getAnalysisHistory(userStore.userId, params)
+    const newAnalyses = result.analyses || []
+    
+    if (isLoadMore) {
+      analyses.value = [...analyses.value, ...newAnalyses]
+    } else {
+      analyses.value = newAnalyses
+    }
+    
+    // 判断是否还有更多数据
+    hasMore.value = newAnalyses.length === perPage.value
+    if (hasMore.value) {
+      currentPage.value++
+    }
   } catch (error) {
     console.error('加载分析历史失败:', error)
-    analyses.value = []
+    if (!isLoadMore) {
+      analyses.value = []
+    }
   } finally {
     loading.value = false
+    loadingMore.value = false
   }
 }
 
-// 根据时间过滤条件过滤分析记录
-const filterAnalysesByTime = (analyses) => {
+// 根据预设的时间选项计算日期范围
+const getDateRangeFromFilter = (filterValue) => {
   const now = new Date()
-  
-  // 如果有自定义日期范围，优先使用
-  if (startDate.value && endDate.value) {
-    const start = new Date(startDate.value)
-    const end = new Date(endDate.value)
-    end.setHours(23, 59, 59, 999) // 包含结束日期的整天
-    
-    return analyses.filter(item => {
-      if (!item.analyzed_at) return false
-      const analysisDate = new Date(item.analyzed_at)
-      return analysisDate >= start && analysisDate <= end
-    })
-  }
-  
-  // 根据预设的时间选项过滤
-  if (selectedTimeFilter.value === 'all') {
-    return analyses
-  }
-  
   const daysMap = {
     '7days': 7,
     '30days': 30,
     '90days': 90
   }
   
-  const days = daysMap[selectedTimeFilter.value]
-  if (!days) return analyses
+  const days = daysMap[filterValue]
+  if (!days) return { start: null, end: null }
   
-  const cutoffDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
-  
-  return analyses.filter(item => {
-    if (!item.analyzed_at) return false
-    const analysisDate = new Date(item.analyzed_at)
-    return analysisDate >= cutoffDate
-  })
+  const startDateObj = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
+  return {
+    start: formatDate(startDateObj),
+    end: formatDate(now)
+  }
+}
+
+// 格式化日期为 YYYY-MM-DD
+const formatDate = (date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 // 应用自定义日期范围
 const applyDateRange = () => {
   selectedTimeFilter.value = 'custom'
+  loadAnalyses()
 }
 
 // 清除自定义日期范围
@@ -266,12 +303,18 @@ const clearDateRange = () => {
   startDate.value = ''
   endDate.value = ''
   selectedTimeFilter.value = 'all'
+  loadAnalyses()
 }
 
-// 计算后的分析列表
-const filteredAnalyses = computed(() => {
-  return filterAnalysesByTime(analyses.value)
-})
+// 监听时间筛选变化
+const handleTimeFilterChange = (value) => {
+  selectedTimeFilter.value = value
+  if (value === 'all') {
+    startDate.value = ''
+    endDate.value = ''
+  }
+  loadAnalyses()
+}
 
 // 获取封面图 URL
 const getThumbnailUrl = (thumbnailPath) => {
@@ -318,6 +361,21 @@ const viewAnalysisDetail = (videoId) => {
 const handleLogout = () => {
   userStore.logout()
   router.push('/login')
+}
+
+// 滚动加载相关
+const scrollContainer = ref(null)
+
+const handleScroll = (event) => {
+  const target = event.target
+  const scrollTop = target.scrollTop
+  const scrollHeight = target.scrollHeight
+  const clientHeight = target.clientHeight
+  
+  // 当滚动到距离底部 100px 时，加载更多数据
+  if (scrollHeight - scrollTop - clientHeight < 100 && !loadingMore.value && hasMore.value) {
+    loadAnalyses(true)
+  }
 }
 </script>
 
@@ -889,5 +947,45 @@ const handleLogout = () => {
     gap: 15px;
     align-items: flex-start;
   }
+}
+
+/* 滚动加载容器样式 */
+.scroll-container {
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.scroll-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.scroll-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* 加载更多提示样式 */
+.loading-more {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-size: 14px;
+}
+
+.no-more {
+  text-align: center;
+  padding: 20px;
+  color: #999;
+  font-size: 14px;
 }
 </style>

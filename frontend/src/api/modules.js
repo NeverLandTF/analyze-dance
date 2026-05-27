@@ -107,11 +107,25 @@ export const videoAPI = {
     })
   },
   
-  // 获取视频列表
-  getVideos(userId, dancerId = null) {
+  // 获取视频列表（支持时间过滤和分页）
+  getVideos(userId, dancerId = null, params = {}) {
     let url = `/videos?user_id=${userId}`
     if (dancerId) {
       url += `&dancer_id=${dancerId}`
+    }
+    // 添加时间过滤参数
+    if (params.startDate) {
+      url += `&start_date=${params.startDate}`
+    }
+    if (params.endDate) {
+      url += `&end_date=${params.endDate}`
+    }
+    // 添加分页参数
+    if (params.page) {
+      url += `&page=${params.page}`
+    }
+    if (params.perPage) {
+      url += `&per_page=${params.perPage}`
     }
     return api.get(url)
   },
@@ -143,9 +157,24 @@ export const analysisAPI = {
     return api.get(`/videos/${videoId}`).then(res => res.analyses || [])
   },
 
-  // 获取分析历史列表
-  getAnalysisHistory(userId) {
-    return api.get(`/analysis/history?user_id=${userId}`)
+  // 获取分析历史列表（支持时间过滤和分页）
+  getAnalysisHistory(userId, params = {}) {
+    let url = `/analysis/history?user_id=${userId}`
+    // 添加时间过滤参数
+    if (params.startDate) {
+      url += `&start_date=${params.startDate}`
+    }
+    if (params.endDate) {
+      url += `&end_date=${params.endDate}`
+    }
+    // 添加分页参数
+    if (params.page) {
+      url += `&page=${params.page}`
+    }
+    if (params.perPage) {
+      url += `&per_page=${params.perPage}`
+    }
+    return api.get(url)
   }
 }
 

@@ -3,6 +3,7 @@ AI 分析相关路由模块
 处理视频分析 API 端点
 """
 from flask import Blueprint, request, jsonify, current_app
+from datetime import datetime
 import os
 import logging
 
@@ -141,7 +142,7 @@ def analyze_video():
 @analysis_bp.route('/analysis/history', methods=['GET'])
 @token_required
 def get_analysis_history():
-    """获取用户的分析历史列表"""
+    """获取用户的分析历史列表 - 支持时间过滤和分页"""
     current_user = request.current_user
     
     # 从 query 参数或 token 中获取 user_id
@@ -154,10 +155,43 @@ def get_analysis_history():
     if not current_user.get('is_admin', False) and int(user_id) != current_user.get('user_id'):
         return jsonify({'error': 'Permission denied. You can only view your own analysis history.'}), 403
     
+    # 时间过滤参数
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
     # 查询分析记录，关联视频信息
-    analyses = db.session.query(Analysis, Video).join(Video).filter(
+    query = db.session.query(Analysis, Video).join(Video).filter(
         Video.user_id == int(user_id)
-    ).order_by(Analysis.processed_at.desc()).all()
+    )
+    
+    # 应用时间过滤
+    if start_date:
+        try:
+            start = datetime.fromisoformat(start_date)
+            query = query.filter(Analysis.processed_at >= start)
+        except ValueError:
+            pass
+    
+    if end_date:
+        try:
+            # 包含结束日期的整天
+            end = datetime.fromisoformat(end_date)
+            end = end.replace(hour=23, minute=59, second=59, microsecond=999999)
+            query = query.filter(Analysis.processed_at <= end)
+        except ValueError:
+            pass
+    
+    # 分页参数
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    # 限制每页最大数量
+    per_page = min(per_page, 50)
+    
+    # 执行分页查询
+    pagination = query.order_by(Analysis.processed_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    analyses = pagination.items
     
     return jsonify({
         'analyses': [{
@@ -170,5 +204,13 @@ def get_analysis_history():
             'overall_score': a.result_data.get('overall_score', 0) if a.result_data else 0,
             'summary': a.result_data.get('summary', '') if a.result_data else '',
             'analysis_type': a.analysis_type
-        } for a, v in analyses]
+        } for a, v in analyses],
+        'pagination': {
+            'page': page,
+            'per_page': per_page,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'has_next': pagination.has_next,
+            'has_prev': pagination.has_prev
+        }
     })
