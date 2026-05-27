@@ -6,6 +6,7 @@ from flask import Flask
 from flask_cors import CORS
 from flask_migrate import Migrate
 import os
+import logging
 
 from models import db
 from utils import get_upload_config, ensure_upload_directories, get_ai_config
@@ -16,6 +17,13 @@ def create_app():
     """应用工厂函数"""
     app = Flask(__name__)
     CORS(app)
+    
+    # 配置日志级别，确保 INFO 级别的日志能够输出
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
     
     # 获取上传配置
     upload_config = get_upload_config(app)
