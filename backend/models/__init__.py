@@ -64,6 +64,8 @@ class Video(db.Model):
     dancer_id = db.Column(db.Integer, db.ForeignKey('dancers.id'), nullable=False, comment='舞者 ID')
     title = db.Column(db.String(200), nullable=False, comment='视频标题')
     file_path = db.Column(db.String(500), nullable=False, comment='文件存储路径')
+    file_format = db.Column(db.String(20), comment='文件格式（扩展名）')
+    file_size = db.Column(db.BigInteger, comment='文件大小（字节）')
     thumbnail_url = db.Column(db.String(255), comment='缩略图 URL')
     duration = db.Column(db.Float, comment='视频时长（秒）')
     upload_date = db.Column(db.DateTime, default=get_cst_now, nullable=False, comment='上传时间 (CST/UTC+8)')
