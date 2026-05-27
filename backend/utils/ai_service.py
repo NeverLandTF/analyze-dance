@@ -4,7 +4,7 @@ AI 分析服务模块
 """
 import os
 import requests
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 from flask import current_app
 
 
@@ -23,7 +23,11 @@ def get_ai_config(app=None):
             ),
             'AI_MODEL_NAME': app.config.get(
                 'AI_MODEL_NAME',
-                os.environ.get('AI_MODEL_NAME', 'qwen-plus')
+                os.environ.get('AI_MODEL_NAME', 'qwen-vl-max-latest')
+            ),
+            'AI_VIDEO_FRAMES_COUNT': app.config.get(
+                'AI_VIDEO_FRAMES_COUNT',
+                os.environ.get('AI_VIDEO_FRAMES_COUNT', '8')
             )
         }
     
@@ -34,7 +38,8 @@ def get_ai_config(app=None):
             'https://dashscope.aliyuncs.com/compatible-mode/v1'
         ),
         'AI_API_KEY': os.environ.get('AI_API_KEY', ''),
-        'AI_MODEL_NAME': os.environ.get('AI_MODEL_NAME', 'qwen-plus')
+        'AI_MODEL_NAME': os.environ.get('AI_MODEL_NAME', 'qwen-vl-max-latest'),
+        'AI_VIDEO_FRAMES_COUNT': int(os.environ.get('AI_VIDEO_FRAMES_COUNT', '8'))
     }
 
 
@@ -49,10 +54,41 @@ class AIAnalysisService:
         self.api_base_url = config.get('AI_API_BASE_URL')
         self.api_key = config.get('AI_API_KEY')
         self.model_name = config.get('AI_MODEL_NAME')
+        self.video_frames_count = config.get('AI_VIDEO_FRAMES_COUNT', 8)
     
-    def analyze_video(self, video_description: str, dance_style: str = "") -> Dict[str, Any]:
+    def analyze_video(self, video_url: str, dance_style: str = "") -> Dict[str, Any]:
         """
         分析舞蹈视频并返回结构化结果
+        
+        Args:
+            video_url: 视频的完整 URL
+            dance_style: 舞蹈风格（如 breaking, popping, locking 等）
+            
+        Returns:
+            包含分析结果的字典，格式为：
+            {
+                'analysis': {...},  # 分析结果
+                'usage': {...}      # token 使用量信息
+            }
+        """
+        if not self.api_key:
+            raise ValueError("AI API Key 未配置，请设置 AI_API_KEY 环境变量")
+        
+        # 调用大模型 API 进行分析，直接传入视频 URL
+        response_data, usage_info = self._call_llm_api_with_video_url(video_url, dance_style)
+        
+        # 解析并结构化返回结果
+        analysis_result = self._parse_analysis_result(response_data)
+        
+        # 返回分析结果和 token 使用量
+        return {
+            'analysis': analysis_result,
+            'usage': usage_info
+        }
+    
+    def analyze_video_with_description(self, video_description: str, dance_style: str = "") -> Dict[str, Any]:
+        """
+        （降级方案）基于视频描述进行分析，当无法处理实际视频时使用
         
         Args:
             video_description: 视频描述或内容说明
@@ -124,9 +160,129 @@ class AIAnalysisService:
         
         return prompt
     
+    def _call_llm_api_with_video_url(self, video_url: str, dance_style: str) -> Tuple[str, Dict[str, Any]]:
+        """
+        调用大模型 API，直接传入视频 URL
+        
+        Args:
+            video_url: 视频的完整 URL
+            dance_style: 舞蹈风格
+            
+        Returns:
+            (模型返回的文本内容，token 使用量信息)
+        """
+        url = f"{self.api_base_url}/chat/completions"
+        
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        # 构建消息内容，包含视频 URL 和文本
+        content_items = []
+        
+        # 根据示例代码，使用视频 URL 的方式传入
+        content_items.append({
+            "type": "video",
+            "video": [video_url]  # 使用视频 URL 列表
+        })
+        
+        # 添加文本提示
+        style_info = f"，舞蹈风格为 {dance_style}" if dance_style else ""
+        prompt_text = f"""你是一位专业的舞蹈分析专家。请分析这个舞蹈视频{style_info}。
+
+请从以下几个方面进行详细分析：
+1. 姿态检测 (pose_detection): 评估舞者的基本姿态、身体对齐情况
+2. 动作质量 (movement_quality): 包括节奏感、流畅度、力量控制、柔韧性等
+3. 技术要点：指出做得好的地方和需要改进的地方
+4. 综合评分：给出 0-100 的综合评分
+
+请以 JSON 格式返回分析结果，格式如下：
+{{
+    "pose_detection": {{
+        "confidence": 0.95,
+        "keypoints": ["头部稳定", "脊柱对齐良好", "四肢伸展充分"],
+        "issues": []
+    }},
+    "movement_quality": {{
+        "score": 85.5,
+        "rhythm": 88,
+        "flow": 82,
+        "power": 85,
+        "flexibility": 80,
+        "feedback": "具体的反馈意见"
+    }},
+    "technical_analysis": {{
+        "strengths": ["优点 1", "优点 2"],
+        "areas_to_improve": ["需要改进的方面 1", "需要改进的方面 2"]
+    }},
+    "overall_score": 85,
+    "summary": "综合评价总结"
+}}
+
+请确保返回有效的 JSON 格式，不要包含其他解释性文字。"""
+        
+        content_items.append({
+            "type": "text",
+            "text": prompt_text
+        })
+        
+        # 使用实际配置的模型名称
+        payload = {
+            'model': self.model_name,
+            'messages': [
+                {
+                    'role': 'user',
+                    'content': content_items
+                }
+            ],
+            'temperature': 0.7,
+            'max_tokens': 2000
+        }
+        
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=60)
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            # 提取 token 使用量信息
+            usage_info = {}
+            if 'usage' in result:
+                usage_info = {
+                    'prompt_tokens': result['usage'].get('prompt_tokens', 0),
+                    'completion_tokens': result['usage'].get('completion_tokens', 0),
+                    'total_tokens': result['usage'].get('total_tokens', 0),
+                    'model': self.model_name
+                }
+            
+            if 'choices' in result and len(result['choices']) > 0:
+                return result['choices'][0]['message']['content'], usage_info
+            else:
+                raise ValueError("API 响应格式异常")
+                
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"调用 AI API 失败：{str(e)}")
+    
+    def _call_llm_api_with_frames(self, frame_paths: List[str], dance_style: str) -> Tuple[str, Dict[str, Any]]:
+        """
+        （已废弃）调用大模型 API，传入视频帧图片
+        保留此方法以兼容旧版本，现在直接使用视频 URL
+        
+        Args:
+            frame_paths: 视频帧图片路径列表
+            dance_style: 舞蹈风格
+            
+        Returns:
+            (模型返回的文本内容，token 使用量信息)
+        """
+        # 为了向后兼容，将帧路径转换为 URL 形式调用新方法
+        # 注意：这个方法不再被使用，建议直接使用 _call_llm_api_with_video_url
+        raise NotImplementedError("此方法已废弃，请直接使用视频 URL 方式调用")
+    
     def _call_llm_api(self, prompt: str) -> Tuple[str, Dict[str, Any]]:
         """
-        调用大模型 API
+        调用大模型 API（纯文本方式，用于降级方案）
         
         Args:
             prompt: 提示词
@@ -143,7 +299,7 @@ class AIAnalysisService:
         
         # 使用实际配置的模型名称，而非固定值
         payload = {
-            'model': self.model_name,  # 使用真实配置值
+            'model': self.model_name,
             'messages': [
                 {
                     'role': 'system',

@@ -2,7 +2,8 @@
 AI 分析相关路由模块
 处理视频分析 API 端点
 """
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
+import os
 
 from models import db, Video, Analysis, ProgressRecord
 from utils.auth import token_required
@@ -44,12 +45,25 @@ def analyze_video():
         # 获取 AI 服务实例
         ai_service = get_ai_service()
         
-        # 构建视频描述信息
-        video_description = f"视频标题：{video.title}, 舞蹈风格：{video.dance_style or '未指定'}"
+        # 构建视频的完整 URL
+        # 假设视频可以通过 HTTP 访问，需要根据实际部署情况调整
+        upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+        video_file_path = os.path.join(upload_folder, video.file_path.lstrip('/'))
         
-        # 调用 AI 分析服务
+        # 构建视频的可访问 URL
+        # 方式 1: 如果配置了 VIDEO_BASE_URL，直接拼接
+        video_base_url = current_app.config.get('VIDEO_BASE_URL', os.environ.get('VIDEO_BASE_URL', ''))
+        if video_base_url:
+            video_url = f"{video_base_url.rstrip('/')}/{video.file_path.lstrip('/')}"
+        else:
+            # 方式 2: 使用本地文件路径（需要确保 API 服务能访问本地文件）
+            # 或者使用 Flask 的 url_for 生成 URL
+            from flask import url_for
+            video_url = url_for('static', filename=video.file_path.lstrip('/'), _external=True)
+        
+        # 调用 AI 分析服务，传入视频的完整 URL
         result = ai_service.analyze_video(
-            video_description=video_description,
+            video_url=video_url,
             dance_style=video.dance_style or ""
         )
         
@@ -61,16 +75,28 @@ def analyze_video():
         # API Key 未配置等错误
         return jsonify({'error': str(e)}), 500
     except Exception as e:
-        # 其他错误，返回模拟结果作为降级方案
-        analysis_result = {
-            'pose_detection': {'confidence': 0.95, 'keypoints': [], 'issues': []},
-            'movement_quality': {'score': 85.5, 'feedback': f'AI 服务暂时不可用：{str(e)}'},
-            'comparison_with_previous': {'improvement': '+12%', 'areas_to_focus': ['footwork', 'transitions']},
-            'technical_analysis': {'strengths': [], 'areas_to_improve': []},
-            'overall_score': 85,
-            'summary': ''
-        }
-        token_usage = {}
+        # 其他错误，尝试使用降级方案（基于视频描述进行分析）
+        try:
+            ai_service = get_ai_service()
+            video_description = f"视频标题：{video.title}, 舞蹈风格：{video.dance_style or '未指定'}"
+            result = ai_service.analyze_video_with_description(
+                video_description=video_description,
+                dance_style=video.dance_style or ""
+            )
+            analysis_result = result.get('analysis', {})
+            token_usage = result.get('usage', {})
+            analysis_result['summary'] = f'注意：使用降级方案分析（无法处理实际视频文件）。原始错误：{str(e)}'
+        except Exception as fallback_error:
+            # 降级方案也失败，返回模拟结果
+            analysis_result = {
+                'pose_detection': {'confidence': 0.95, 'keypoints': [], 'issues': []},
+                'movement_quality': {'score': 85.5, 'feedback': f'AI 服务暂时不可用：{str(e)}'},
+                'comparison_with_previous': {'improvement': '+12%', 'areas_to_focus': ['footwork', 'transitions']},
+                'technical_analysis': {'strengths': [], 'areas_to_improve': []},
+                'overall_score': 85,
+                'summary': ''
+            }
+            token_usage = {}
     
     # 创建分析记录，保存 token 使用量到 result_data
     analysis = Analysis(
