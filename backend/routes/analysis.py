@@ -222,3 +222,34 @@ def get_analysis_history():
             'has_prev': pagination.has_prev
         }
     })
+
+
+@analysis_bp.route('/analysis/<int:analysis_id>', methods=['GET'])
+@token_required
+def get_analysis_detail(analysis_id):
+    """获取单个分析详情"""
+    current_user = request.current_user
+    
+    # 查询分析记录
+    analysis = Analysis.query.get(analysis_id)
+    if not analysis:
+        return jsonify({'error': 'Analysis not found'}), 404
+    
+    # 权限验证：普通用户只能查看自己的分析记录，管理员可以查看所有
+    if not current_user.get('is_admin', False) and analysis.user_id != current_user.get('user_id'):
+        return jsonify({'error': 'Permission denied. You can only view your own analysis records.'}), 403
+    
+    # 获取关联的视频信息
+    video = Video.query.get(analysis.video_id)
+    
+    return jsonify({
+        'id': analysis.id,
+        'user_id': analysis.user_id,
+        'video_id': analysis.video_id,
+        'video_title': video.title if video else None,
+        'analysis_type': analysis.analysis_type,
+        'result_data': analysis.result_data or {},
+        'confidence_score': analysis.confidence_score,
+        'processed_at': analysis.processed_at.isoformat() if analysis.processed_at else None,
+        'model_version': analysis.model_version
+    })

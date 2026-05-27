@@ -157,6 +157,11 @@ export const analysisAPI = {
     return api.get(`/videos/${videoId}`).then(res => res.analyses || [])
   },
 
+  // 获取分析详情（新增接口）
+  getAnalysisDetail(analysisId) {
+    return api.get(`/analysis/${analysisId}`)
+  },
+
   // 获取分析历史列表（支持时间过滤和分页）
   getAnalysisHistory(userId, params = {}) {
     let url = `/analysis/history?user_id=${userId}`
