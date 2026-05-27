@@ -4,10 +4,14 @@ AI 分析相关路由模块
 """
 from flask import Blueprint, request, jsonify, current_app
 import os
+import logging
 
 from models import db, Video, Analysis, ProgressRecord
 from utils.auth import token_required
 from utils.ai_service import get_ai_service
+
+# 配置日志
+logger = logging.getLogger(__name__)
 
 analysis_bp = Blueprint('analysis', __name__, url_prefix='/api')
 
@@ -61,11 +65,15 @@ def analyze_video():
             from flask import url_for
             video_url = url_for('static', filename=video.file_path.lstrip('/'), _external=True)
         
+        logger.info(f"[视频分析] 开始分析视频 ID={video.id}, 标题='{video.title}', URL={video_url}")
+        
         # 调用 AI 分析服务，传入视频的完整 URL
         result = ai_service.analyze_video(
             video_url=video_url,
             dance_style=video.dance_style or ""
         )
+        
+        logger.info(f"[视频分析] 视频 ID={video.id} 使用【视频 URL 分析方案】成功")
         
         # 解析返回结果（包含 analysis 和 usage）
         analysis_result = result.get('analysis', {})
@@ -73,9 +81,11 @@ def analyze_video():
         
     except ValueError as e:
         # API Key 未配置等错误
+        logger.error(f"[视频分析] 视频 ID={video.id} 配置错误：{str(e)}")
         return jsonify({'error': str(e)}), 500
     except Exception as e:
         # 其他错误，尝试使用降级方案（基于视频描述进行分析）
+        logger.warning(f"[视频分析] 视频 ID={video.id} 视频 URL 分析失败：{str(e)}, 尝试降级方案...")
         try:
             ai_service = get_ai_service()
             video_description = f"视频标题：{video.title}, 舞蹈风格：{video.dance_style or '未指定'}"
@@ -86,8 +96,10 @@ def analyze_video():
             analysis_result = result.get('analysis', {})
             token_usage = result.get('usage', {})
             analysis_result['summary'] = f'注意：使用降级方案分析（无法处理实际视频文件）。原始错误：{str(e)}'
+            logger.info(f"[视频分析] 视频 ID={video.id} 使用【文本描述降级方案】成功")
         except Exception as fallback_error:
             # 降级方案也失败，返回模拟结果
+            logger.error(f"[视频分析] 视频 ID={video.id} 降级方案也失败：{str(fallback_error)}, 使用模拟结果")
             analysis_result = {
                 'pose_detection': {'confidence': 0.95, 'keypoints': [], 'issues': []},
                 'movement_quality': {'score': 85.5, 'feedback': f'AI 服务暂时不可用：{str(e)}'},
