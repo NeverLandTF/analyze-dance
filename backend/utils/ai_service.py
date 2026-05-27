@@ -138,6 +138,7 @@ class AIAnalysisService:
 2. 动作质量 (movement_quality): 包括节奏感、流畅度、力量控制、柔韧性等
 3. 技术要点：指出做得好的地方和需要改进的地方
 4. 综合评分：给出 0-100 的综合评分
+5. 具体建议：给出针对性的训练建议
 
 请以 JSON 格式返回分析结果，格式如下：
 {{
@@ -159,6 +160,21 @@ class AIAnalysisService:
         "areas_to_improve": ["需要改进的方面 1", "需要改进的方面 2"]
     }},
     "overall_score": 85,
+    "technique_score": 85,
+    "rhythm_score": 88,
+    "expression_score": 82,
+    "completeness_score": 85,
+    "strengths": ["姿态稳定", "节奏感好"],
+    "improvements": ["动作连贯性", "表情管理"],
+    "movements": [
+        {{
+            "name": "动作名称",
+            "timestamp": 30.5,
+            "quality": "优秀",
+            "comment": "动作点评"
+        }}
+    ],
+    "suggestions": ["建议多加练习基本功", "注意动作之间的过渡"],
     "summary": "综合评价总结"
 }}
 
@@ -198,6 +214,7 @@ class AIAnalysisService:
 2. 动作质量 (movement_quality): 包括节奏感、流畅度、力量控制、柔韧性等
 3. 技术要点：指出做得好的地方和需要改进的地方
 4. 综合评分：给出 0-100 的综合评分
+5. 具体建议：给出针对性的训练建议
 
 请以 JSON 格式返回分析结果，格式如下：
 {{
@@ -219,6 +236,21 @@ class AIAnalysisService:
         "areas_to_improve": ["需要改进的方面 1", "需要改进的方面 2"]
     }},
     "overall_score": 85,
+    "technique_score": 85,
+    "rhythm_score": 88,
+    "expression_score": 82,
+    "completeness_score": 85,
+    "strengths": ["姿态稳定", "节奏感好"],
+    "improvements": ["动作连贯性", "表情管理"],
+    "movements": [
+        {{
+            "name": "动作名称",
+            "timestamp": 30.5,
+            "quality": "优秀",
+            "comment": "动作点评"
+        }}
+    ],
+    "suggestions": ["建议多加练习基本功", "注意动作之间的过渡"],
     "summary": "综合评价总结"
 }}
 
@@ -359,15 +391,15 @@ class AIAnalysisService:
                     'areas_to_focus': technical_analysis.get('areas_to_improve', [])
                 },
                 'technical_analysis': technical_analysis,
-                # 映射到前端期望的字段名
+                # 映射到前端期望的字段名：优先使用 AI 直接返回的字段，如果没有则从嵌套结构映射
                 'overall_score': result.get('overall_score', 75),
-                'technique_score': movement_quality.get('score', 75),  # 使用 movement_quality.score 作为 technique_score
-                'rhythm_score': movement_quality.get('rhythm', 75),
-                'expression_score': movement_quality.get('flow', 75),  # 使用 flow 作为 expression_score
-                'completeness_score': movement_quality.get('power', 75),  # 使用 power 作为 completeness_score
-                # 映射 strengths 和 improvements
-                'strengths': technical_analysis.get('strengths', []),
-                'improvements': technical_analysis.get('areas_to_improve', []),
+                'technique_score': result.get('technique_score', movement_quality.get('score', 75)),
+                'rhythm_score': result.get('rhythm_score', movement_quality.get('rhythm', 75)),
+                'expression_score': result.get('expression_score', movement_quality.get('flow', 75)),
+                'completeness_score': result.get('completeness_score', movement_quality.get('power', 75)),
+                # 映射 strengths 和 improvements：优先使用顶层字段
+                'strengths': result.get('strengths', technical_analysis.get('strengths', [])),
+                'improvements': result.get('improvements', technical_analysis.get('areas_to_improve', [])),
                 # 添加 movements 和 suggestions（如果 AI 返回的话）
                 'movements': result.get('movements', []),
                 'suggestions': result.get('suggestions', []),
