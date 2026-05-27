@@ -199,25 +199,20 @@
                   👁️ 预览
                 </button>
                 <button 
-                  v-if="analyzingVideoIds.has(video.id)" 
-                  disabled 
-                  class="btn-analyze-small btn-loading"
-                >
-                  ⏳ 分析中...
-                </button>
-                <button 
-                  v-else-if="hasAnalysis(video)" 
+                  v-if="hasAnalysis(video)" 
                   @click="viewAnalysisResult(video)" 
-                  class="btn-view-analysis"
+                  class="btn-small btn-analyze-small"
                 >
-                  📊 点击查看分析
+                  📊 查看
                 </button>
                 <button 
                   v-else 
                   @click="handleAnalyzeSingle(video)" 
-                  class="btn-analyze-small"
+                  class="btn-small btn-analyze-small"
+                  :disabled="analyzingVideoIds.has(video.id)"
                 >
-                  🤖 AI 分析
+                  <span v-if="analyzingVideoIds.has(video.id)" class="loading-spinner">⏳</span>
+                  <span v-else>🤖 AI 分析</span>
                 </button>
               </div>
             </div>
@@ -254,25 +249,20 @@
               👁️ 预览视频
             </button>
             <button 
-              v-if="analyzingVideoIds.has(uploadedVideo.id)" 
-              disabled 
-              class="btn-analyze btn-loading"
-            >
-              ⏳ 分析中...
-            </button>
-            <button 
-              v-else-if="hasAnalysis(uploadedVideo)" 
+              v-if="hasAnalysis(uploadedVideo)" 
               @click="viewAnalysisResult(uploadedVideo)" 
-              class="btn-view-analysis"
+              class="btn-analyze"
             >
-              📊 点击查看分析
+              📊 查看最新分析
             </button>
             <button 
               v-else 
               @click="handleAnalyze" 
               class="btn-analyze"
+              :disabled="analyzingVideoIds.has(uploadedVideo.id)"
             >
-              🤖 开始 AI 分析
+              <span v-if="analyzingVideoIds.has(uploadedVideo.id)" class="loading-spinner">⏳</span>
+              <span v-else>🤖 AI 分析</span>
             </button>
             <button @click="resetForm" class="btn-secondary">
               继续上传
@@ -308,25 +298,20 @@
             </div>
             <div class="modal-footer">
               <button 
-                v-if="analyzingVideoIds.has(currentPreviewVideo?.id)" 
-                disabled 
-                class="btn-analyze btn-loading"
-              >
-                ⏳ 分析中...
-              </button>
-              <button 
-                v-else-if="currentPreviewVideo && hasAnalysis(currentPreviewVideo)" 
+                v-if="currentPreviewVideo && hasAnalysis(currentPreviewVideo)" 
                 @click="viewAnalysisResult(currentPreviewVideo)" 
-                class="btn-view-analysis"
+                class="btn-analyze"
               >
-                📊 点击查看分析
+                📊 查看最新分析
               </button>
               <button 
                 v-else 
                 @click="analyzeCurrentPreviewVideo" 
                 class="btn-analyze"
+                :disabled="currentPreviewVideo && analyzingVideoIds.has(currentPreviewVideo.id)"
               >
-                🤖 开始 AI 分析
+                <span v-if="currentPreviewVideo && analyzingVideoIds.has(currentPreviewVideo.id)" class="loading-spinner">⏳</span>
+                <span v-else>🤖 AI 分析</span>
               </button>
               <button @click="closePreview" class="btn-secondary">
                 关闭
@@ -1359,18 +1344,25 @@ const handleLogout = () => {
 }
 
 .btn-analyze {
-  padding: 12px 30px;
-  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
   border-radius: 6px;
-  font-size: 16px;
+  font-size: 15px;
   cursor: pointer;
   font-weight: 600;
+  transition: transform 0.2s;
 }
 
 .btn-analyze:hover {
   transform: translateY(-2px);
+}
+
+.btn-analyze:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* 分析中按钮样式 */
@@ -1620,6 +1612,13 @@ const handleLogout = () => {
 .btn-analyze-small:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-analyze-small:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* 小按钮的加载状态 */

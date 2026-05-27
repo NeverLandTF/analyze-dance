@@ -226,7 +226,7 @@
             :disabled="currentVideo && analyzingVideos[currentVideo.id]"
           >
             <span v-if="currentVideo && analyzingVideos[currentVideo.id]" class="loading-spinner">⏳</span>
-            <span v-else>🤖 开始 AI 分析</span>
+            <span v-else>🤖 AI 分析</span>
           </button>
         </div>
       </div>
@@ -1272,17 +1272,38 @@ const handleLogout = () => {
 }
 
 .btn-analyze-small {
+  padding: 10px 20px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .btn-analyze-small:hover {
-  background: linear-gradient(135deg, #5568d3 0%, #6a4190 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .btn-analyze-small:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* 小按钮的加载状态 */
+.btn-analyze-small.btn-loading {
+  background: linear-gradient(135deg, #95a5a6 0%, #bdc3c7 100%);
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.btn-analyze-small.btn-loading:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 .loading-spinner {
