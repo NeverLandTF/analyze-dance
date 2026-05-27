@@ -249,20 +249,25 @@ const loadAnalysis = async () => {
     loading.value = true
     error.value = ''
     
-    const videoId = route.params.videoId
-    const response = await videoAPI.getVideo(videoId)
+    const analysisId = route.params.analysisId
     
-    videoInfo.value = response
+    // 调用后端新增的 analysis 详情查询接口
+    const response = await analysisAPI.getAnalysisDetail(analysisId)
     
-    if (response.analyses && response.analyses.length > 0) {
+    if (response) {
       // 将 result_data 中的数据合并到 analysis 对象中，以便模板可以直接访问
-      const latestAnalysis = response.analyses[0]
       analysis.value = {
-        ...latestAnalysis.result_data,  // 展开 result_data 中的字段（overall_score, strengths, improvements 等）
-        id: latestAnalysis.id,
-        analysis_type: latestAnalysis.analysis_type,
-        confidence_score: latestAnalysis.confidence_score,
-        analyzed_at: latestAnalysis.processed_at  // 使用 processed_at 作为 analyzed_at
+        ...response.result_data,  // 展开 result_data 中的字段（overall_score, strengths, improvements 等）
+        id: response.id,
+        analysis_type: response.analysis_type,
+        confidence_score: response.confidence_score,
+        analyzed_at: response.processed_at  // 使用 processed_at 作为 analyzed_at
+      }
+      
+      // 获取关联的视频信息
+      if (response.video_id) {
+        const videoResponse = await videoAPI.getVideo(response.video_id)
+        videoInfo.value = videoResponse
       }
     } else {
       analysis.value = null
@@ -278,7 +283,7 @@ const loadAnalysis = async () => {
 const startAnalysis = async () => {
   try {
     loading.value = true
-    const result = await analysisAPI.analyzeVideo(route.params.videoId, userStore.userId)
+    const result = await analysisAPI.analyzeVideo(videoInfo.value.id, userStore.userId)
     showToast('AI 分析完成！', 'success')
     await loadAnalysis()
   } catch (err) {

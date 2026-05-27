@@ -121,7 +121,7 @@
       </div>
 
       <div v-else class="analyses-list">
-        <div v-for="item in analyses" :key="item.id" class="analysis-card" @click="viewAnalysisDetail(item.video_id)">
+        <div v-for="item in analyses" :key="item.id" class="analysis-card" @click="viewAnalysisDetail(item)">
           <div class="analysis-thumbnail">
             <img 
               v-if="item.thumbnail_url" 
@@ -354,8 +354,8 @@ const getScoreClass = (score) => {
 }
 
 // 查看分析详情
-const viewAnalysisDetail = (videoId) => {
-  router.push(`/analysis/${videoId}`)
+const viewAnalysisDetail = (item) => {
+  router.push(`/analysis/${item.id}`)
 }
 
 const handleLogout = () => {

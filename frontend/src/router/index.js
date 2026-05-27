@@ -48,7 +48,7 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/analysis/:videoId',
+    path: '/analysis/:analysisId',
     name: 'AnalysisResult',
     component: () => import('../views/AnalysisResultView.vue'),
     meta: { requiresAuth: true }
