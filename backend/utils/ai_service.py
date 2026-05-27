@@ -171,7 +171,7 @@ class AIAnalysisService:
         Returns:
             (模型返回的文本内容，token 使用量信息)
         """
-        url = f"{self.api_base_url}/chat/completions"
+        url = f"{self.api_base_url}"
         
         headers = {
             'Authorization': f'Bearer {self.api_key}',
@@ -290,7 +290,7 @@ class AIAnalysisService:
         Returns:
             (模型返回的文本内容，token 使用量信息)
         """
-        url = f"{self.api_base_url}/chat/completions"
+        url = f"{self.api_base_url}"
         
         headers = {
             'Authorization': f'Bearer {self.api_key}',
