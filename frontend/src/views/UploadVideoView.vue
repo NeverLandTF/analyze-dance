@@ -1833,4 +1833,14 @@ const handleLogout = () => {
     max-width: 95vw;
   }
 }
+
+.loading-spinner {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 </style>
