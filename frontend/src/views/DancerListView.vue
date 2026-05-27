@@ -163,13 +163,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { userAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
 const userStore = useUserStore()
+const showToast = inject('toast')
 
 const users = ref([])
 const loading = ref(true)
@@ -246,7 +247,7 @@ const handleCreate = async () => {
     
     await loadUsers()
   } catch (error) {
-    alert('创建失败：' + (error.response?.data?.error || '请稍后重试'))
+    showToast('创建失败：' + (error.response?.data?.error || '请稍后重试'), 'error')
   } finally {
     creating.value = false
   }
@@ -259,10 +260,10 @@ const handleDelete = async (user) => {
   
   try {
     await userAPI.deleteUser(user.id)
-    alert('用户已删除')
+    showToast('用户已删除', 'success')
     await loadUsers()
   } catch (error) {
-    alert('删除失败：' + (error.response?.data?.error || '请稍后重试'))
+    showToast('删除失败：' + (error.response?.data?.error || '请稍后重试'), 'error')
   }
 }
 

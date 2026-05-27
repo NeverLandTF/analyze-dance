@@ -206,7 +206,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { analysisAPI, videoAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
@@ -214,6 +214,7 @@ import { useUserStore } from '../stores/user'
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const showToast = inject('toast')
 
 // 用户菜单相关
 const showUserMenu = ref(false)
@@ -270,11 +271,11 @@ const startAnalysis = async () => {
   try {
     loading.value = true
     const result = await analysisAPI.analyzeVideo(route.params.videoId, userStore.userId)
-    alert('AI 分析完成！')
+    showToast('AI 分析完成！', 'success')
     await loadAnalysis()
   } catch (err) {
     console.error('AI 分析失败:', err)
-    alert('AI 分析失败：' + (err.response?.data?.error || '请稍后重试'))
+    showToast('AI 分析失败：' + (err.response?.data?.error || '请稍后重试'), 'error')
   } finally {
     loading.value = false
   }

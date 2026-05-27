@@ -328,13 +328,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { videoAPI, userAPI, analysisAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
 const userStore = useUserStore()
+const showToast = inject('toast')
 
 // 用户菜单相关
 const showUserMenu = ref(false)
@@ -598,7 +599,7 @@ const handleAnalyzeSingle = async (video) => {
     video.analysis_status = 'completed'
   } catch (error) {
     console.error('AI 分析失败:', error)
-    alert('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'))
+    showToast('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'), 'error')
   } finally {
     // 无论成功失败都移除分析状态
     analyzingVideoIds.value.delete(video.id)
@@ -622,7 +623,7 @@ const handleAnalyze = async () => {
     video.analysis_status = 'completed'
   } catch (error) {
     console.error('AI 分析失败:', error)
-    alert('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'))
+    showToast('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'), 'error')
   } finally {
     // 无论成功失败都移除分析状态
     analyzingVideoIds.value.delete(video.id)
@@ -659,7 +660,7 @@ const analyzeCurrentPreviewVideo = async () => {
     currentPreviewVideo.value.analysis_status = 'completed'
   } catch (error) {
     console.error('AI 分析失败:', error)
-    alert('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'))
+    showToast('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'), 'error')
   } finally {
     // 无论成功失败都移除分析状态
     analyzingVideoIds.value.delete(currentPreviewVideo.value.id)

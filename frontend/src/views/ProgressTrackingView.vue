@@ -224,7 +224,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { progressAPI, videoAPI, userAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
@@ -232,6 +232,7 @@ import { useUserStore } from '../stores/user'
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const showToast = inject('toast')
 
 // 用户菜单相关
 const showUserMenu = ref(false)
@@ -359,7 +360,7 @@ const viewVideoAnalysis = (video) => {
   if (video.analyses && video.analyses.length > 0) {
     router.push(`/analysis/${video.id}`)
   } else {
-    alert('该视频尚未进行 AI 分析')
+    showToast('该视频尚未进行 AI 分析', 'warning')
   }
 }
 
