@@ -63,12 +63,12 @@
         <h1>📊 暂无分析结果</h1>
         <p>该视频尚未进行 AI 分析</p>
         <button @click="startAnalysis" class="btn-primary">开始 AI 分析</button>
-        <button @click="$router.push('/my-videos')" class="btn-secondary">返回我的视频</button>
+        <button @click="goBackToHistory" class="btn-secondary">← 返回分析历史</button>
       </div>
       
       <div v-else class="analysis-content">
         <div class="header">
-          <button @click="$router.push('/my-videos')" class="btn-back">← 返回</button>
+          <button @click="goBackToHistory" class="btn-back">← 返回分析历史</button>
           <h1>🤖 AI 分析报告</h1>
           <div class="header-actions">
             <button @click="startAnalysis" class="btn-analyze">🔄 重新分析</button>
@@ -193,8 +193,8 @@
         </div>
         
         <div class="action-buttons">
-          <button @click="$router.push('/my-videos')" class="btn-secondary">
-            返回视频列表
+          <button @click="goBackToHistory" class="btn-secondary">
+            ← 返回分析历史
           </button>
           <button @click="viewProgress" class="btn-primary" v-if="videoInfo?.dancer_id">
             查看进步追踪
@@ -333,6 +333,16 @@ const viewProgress = () => {
   if (videoInfo.value?.dancer_id) {
     router.push(`/progress/${videoInfo.value.dancer_id}`)
   }
+}
+
+// 返回分析历史页面，并滚动定位到当前分析记录
+const goBackToHistory = () => {
+  const analysisId = route.params.analysisId
+  // 跳转到分析历史页面，并传递 analysisId 作为 hash 用于滚动定位
+  router.push({
+    path: '/analysis-history',
+    hash: `#analysis-${analysisId}`
+  })
 }
 
 const handleLogout = () => {

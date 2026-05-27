@@ -308,6 +308,8 @@ const videos = ref([])
 const loading = ref(false)
 // 记录每个视频的分析状态
 const analyzingVideos = reactive({})
+// 记录每个视频最新分析的 analysis_id（调用 /analyze 接口返回的）
+const latestAnalysisIds = reactive({})
 
 // 分页相关
 const currentPage = ref(1)
@@ -370,6 +372,10 @@ const loadVideos = async (isLoadMore = false) => {
       loading.value = true
       currentPage.value = 1
       videos.value = []
+      // 清空 latestAnalysisIds，避免旧数据干扰
+      for (const key in latestAnalysisIds) {
+        delete latestAnalysisIds[key]
+      }
     }
     
     const dateRange = getDateRangeFromFilter()
@@ -518,9 +524,22 @@ const getDanceStyleName = (style) => {
   return styleMap[style] || style
 }
 
-// 检查是否有分析结果
+// 检查是否有分析结果（通过 latestAnalysisIds 判断）
 const hasAnalysis = (video) => {
-  return video.analyses && video.analyses.length > 0
+  return !!latestAnalysisIds[video.id] || (video.analyses && video.analyses.length > 0)
+}
+
+// 获取最新的分析 ID - 优先使用调用/analyze接口返回的analysis_id
+const getLatestAnalysisId = (video) => {
+  // 优先使用调用/analyze接口返回的 analysis_id
+  if (latestAnalysisIds[video.id]) {
+    return latestAnalysisIds[video.id]
+  }
+  // 如果没有，则从 video.analyses 中获取最后一个
+  if (!video.analyses || video.analyses.length === 0) {
+    return null
+  }
+  return video.analyses[video.analyses.length - 1].id
 }
 
 // 打开预览弹窗
@@ -549,9 +568,10 @@ const analyzeVideo = async (video) => {
     const result = await analysisAPI.analyzeVideo(video.id, userStore.userId)
     // 分析成功，移除分析中状态
     delete analyzingVideos[video.id]
-    // 接口返回了 analysis_id，直接更新本地视频的 analyses 字段
-    // 无需调用额外的 getVideo 接口，避免不必要的请求和状态丢失
+    // 接口返回了 analysis_id，保存到这个 video 对应的最新 analysis_id
     if (result.analysis_id) {
+      latestAnalysisIds[video.id] = result.analysis_id
+      
       // 在 videos 数组中找到对应的视频对象
       const index = videos.value.findIndex(v => v.id === video.id)
       if (index !== -1) {
@@ -577,9 +597,14 @@ const analyzeCurrentVideo = async () => {
   await analyzeVideo(currentVideo.value)
 }
 
-// 查看分析结果
+// 查看分析结果 - 使用 analysis id 而不是 video id
 const viewAnalysisResult = (video) => {
-  router.push(`/analysis/${video.id}`)
+  const analysisId = getLatestAnalysisId(video)
+  if (analysisId) {
+    router.push(`/analysis/${analysisId}`)
+  } else {
+    showToast('暂无分析结果', 'error')
+  }
 }
 
 // 查看当前视频的分析结果（从弹窗中）
