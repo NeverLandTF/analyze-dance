@@ -171,6 +171,7 @@ import { useUserStore } from '../stores/user'
 const router = useRouter()
 const userStore = useUserStore()
 const showToast = inject('toast')
+const showConfirm = inject('confirm')
 
 const users = ref([])
 const loading = ref(true)
@@ -254,7 +255,15 @@ const handleCreate = async () => {
 }
 
 const handleDelete = async (user) => {
-  if (!confirm(`确定要删除用户 "${user.username}" 吗？\n\n警告：此操作将删除该用户的所有数据，包括：\n- 所有上传的视频文件\n- 所有视频缩略图\n- 用户头像\n- 所有分析记录\n- 所有进步追踪记录\n\n此操作不可恢复！`)) {
+  const confirmed = await showConfirm({
+    title: '删除用户确认',
+    message: `确定要删除用户 "${user.username}" 吗？\n\n警告：此操作将删除该用户的所有数据，包括：\n- 所有上传的视频文件\n- 所有视频缩略图\n- 用户头像\n- 所有分析记录\n- 所有进步追踪记录\n\n此操作不可恢复！`,
+    confirmText: '删除',
+    cancelText: '取消',
+    type: 'danger'
+  })
+  
+  if (!confirmed) {
     return
   }
   
