@@ -173,13 +173,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { videoAPI, analysisAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
 const userStore = useUserStore()
+const showToast = inject('toast')
 
 // 用户菜单相关
 const showUserMenu = ref(false)
@@ -301,13 +302,12 @@ const analyzeVideo = async (video) => {
     const result = await analysisAPI.analyzeVideo(video.id, userStore.userId)
     // 分析成功，移除分析中状态
     delete analyzingVideos[video.id]
-    // 重新加载视频列表以更新分析状态
-    await loadVideos()
+    // 不自动刷新页面，保持当前状态，按钮状态会自动变化
   } catch (error) {
     console.error('AI 分析失败:', error)
     // 分析失败，移除分析中状态
     delete analyzingVideos[video.id]
-    alert('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'))
+    showToast('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'), 'error')
   }
 }
 
@@ -336,12 +336,12 @@ const confirmDeleteVideo = async (video) => {
   
   try {
     await videoAPI.deleteVideo(video.id)
-    alert('视频已删除')
+    showToast('视频已删除', 'success')
     // 重新加载视频列表
     await loadVideos()
   } catch (error) {
     console.error('删除视频失败:', error)
-    alert('删除失败：' + (error.response?.data?.error || '请稍后重试'))
+    showToast('删除失败：' + (error.response?.data?.error || '请稍后重试'), 'error')
   }
 }
 

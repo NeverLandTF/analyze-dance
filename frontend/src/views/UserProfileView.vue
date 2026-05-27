@@ -113,13 +113,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { authAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
 const userStore = useUserStore()
+const showToast = inject('toast')
 
 const showPasswordModal = ref(false)
 const changingPassword = ref(false)
@@ -161,13 +162,13 @@ const handleAvatarChange = async (event) => {
   
   // 验证文件类型
   if (!file.type.startsWith('image/')) {
-    alert('请选择图片文件')
+    showToast('请选择图片文件', 'warning')
     return
   }
   
   // 验证文件大小（最大 5MB）
   if (file.size > 5 * 1024 * 1024) {
-    alert('图片大小不能超过 5MB')
+    showToast('图片大小不能超过 5MB', 'warning')
     return
   }
   
@@ -184,13 +185,13 @@ const handleAvatarChange = async (event) => {
       userAvatar.value = avatarUrl
       // 更新 store 中的用户信息，包含头像
       userStore.updateUser({ avatar_url: avatarUrl })
-      alert('头像更新成功！')
+      showToast('头像更新成功！', 'success')
     } else {
-      alert('头像上传失败，请稍后重试')
+      showToast('头像上传失败，请稍后重试', 'error')
     }
   } catch (error) {
     console.error('上传头像失败:', error)
-    alert('头像上传失败：' + (error.response?.data?.error || error.message || '请稍后重试'))
+    showToast('头像上传失败：' + (error.response?.data?.error || error.message || '请稍后重试'), 'error')
   } finally {
     isUploading.value = false
     // 清空 input，允许重复选择同一文件
