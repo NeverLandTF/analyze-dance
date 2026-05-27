@@ -68,16 +68,54 @@
         </button>
       </div>
       
+      <!-- 时间过滤器 -->
+      <div class="filter-section">
+        <div class="filter-group">
+          <label class="filter-label">📅 按时间筛选：</label>
+          <div class="time-filters">
+            <button 
+              v-for="option in timeFilterOptions" 
+              :key="option.value"
+              @click="selectedTimeFilter = option.value"
+              :class="['filter-btn', { active: selectedTimeFilter === option.value }]"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+        </div>
+        <div class="filter-group date-range-group">
+          <label class="filter-label">自定义范围：</label>
+          <div class="date-range-inputs">
+            <input 
+              type="date" 
+              v-model="startDate" 
+              class="date-input"
+              :max="endDate || new Date().toISOString().split('T')[0]"
+            />
+            <span class="date-separator">至</span>
+            <input 
+              type="date" 
+              v-model="endDate" 
+              class="date-input"
+              :min="startDate"
+              :max="new Date().toISOString().split('T')[0]"
+            />
+            <button @click="applyDateRange" class="btn-apply-date">应用</button>
+            <button @click="clearDateRange" class="btn-clear-date">清除</button>
+          </div>
+        </div>
+      </div>
+      
       <div v-if="loading" class="loading">加载中...</div>
       
-      <div v-else-if="analyses.length === 0" class="empty-state">
+      <div v-else-if="filteredAnalyses.length === 0" class="empty-state">
         <div class="empty-icon">📊</div>
-        <p>暂无 AI 分析记录</p>
+        <p>{{ analyses.length === 0 ? '暂无 AI 分析记录' : '当前筛选条件下没有分析记录' }}</p>
         <button @click="$router.push('/upload')" class="btn-primary">去上传视频并分析</button>
       </div>
       
       <div v-else class="analyses-list">
-        <div v-for="item in analyses" :key="item.id" class="analysis-card" @click="viewAnalysisDetail(item.video_id)">
+        <div v-for="item in filteredAnalyses" :key="item.id" class="analysis-card" @click="viewAnalysisDetail(item.video_id)">
           <div class="analysis-thumbnail">
             <img 
               v-if="item.thumbnail_url" 
@@ -115,7 +153,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { analysisAPI, videoAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
@@ -149,18 +187,87 @@ onUnmounted(() => {
 const analyses = ref([])
 const loading = ref(true)
 
+// 时间过滤相关
+const selectedTimeFilter = ref('all')
+const startDate = ref('')
+const endDate = ref('')
+const timeFilterOptions = [
+  { label: '全部', value: 'all' },
+  { label: '最近 7 天', value: '7days' },
+  { label: '最近 30 天', value: '30days' },
+  { label: '最近 90 天', value: '90days' }
+]
+
 // 加载分析历史列表
 const loadAnalyses = async () => {
   try {
     loading.value = true
     const result = await analysisAPI.getAnalysisHistory(userStore.userId)
-    analyses.value = result
+    analyses.value = result || []
   } catch (error) {
     console.error('加载分析历史失败:', error)
+    analyses.value = []
   } finally {
     loading.value = false
   }
 }
+
+// 根据时间过滤条件过滤分析记录
+const filterAnalysesByTime = (analyses) => {
+  const now = new Date()
+  
+  // 如果有自定义日期范围，优先使用
+  if (startDate.value && endDate.value) {
+    const start = new Date(startDate.value)
+    const end = new Date(endDate.value)
+    end.setHours(23, 59, 59, 999) // 包含结束日期的整天
+    
+    return analyses.filter(item => {
+      if (!item.analyzed_at) return false
+      const analysisDate = new Date(item.analyzed_at)
+      return analysisDate >= start && analysisDate <= end
+    })
+  }
+  
+  // 根据预设的时间选项过滤
+  if (selectedTimeFilter.value === 'all') {
+    return analyses
+  }
+  
+  const daysMap = {
+    '7days': 7,
+    '30days': 30,
+    '90days': 90
+  }
+  
+  const days = daysMap[selectedTimeFilter.value]
+  if (!days) return analyses
+  
+  const cutoffDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
+  
+  return analyses.filter(item => {
+    if (!item.analyzed_at) return false
+    const analysisDate = new Date(item.analyzed_at)
+    return analysisDate >= cutoffDate
+  })
+}
+
+// 应用自定义日期范围
+const applyDateRange = () => {
+  selectedTimeFilter.value = 'custom'
+}
+
+// 清除自定义日期范围
+const clearDateRange = () => {
+  startDate.value = ''
+  endDate.value = ''
+  selectedTimeFilter.value = 'all'
+}
+
+// 计算后的分析列表
+const filteredAnalyses = computed(() => {
+  return filterAnalysesByTime(analyses.value)
+})
 
 // 获取封面图 URL
 const getThumbnailUrl = (thumbnailPath) => {
@@ -401,6 +508,154 @@ const handleLogout = () => {
 .header h1 {
   font-size: 32px;
   color: #333;
+}
+
+/* 时间过滤器样式 */
+.filter-section {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.filter-group:last-child {
+  margin-bottom: 0;
+}
+
+.filter-label {
+  font-weight: 600;
+  color: #555;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.time-filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 8px 16px;
+  background: #f5f7fa;
+  color: #666;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.filter-btn:hover {
+  background: #e8eaf6;
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.filter-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: transparent;
+}
+
+.date-range-group {
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.date-range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.date-input {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #333;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.date-separator {
+  color: #999;
+  font-size: 14px;
+}
+
+.btn-apply-date {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: transform 0.2s;
+}
+
+.btn-apply-date:hover {
+  transform: translateY(-1px);
+}
+
+.btn-clear-date {
+  padding: 8px 16px;
+  background: #f5f7fa;
+  color: #666;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-clear-date:hover {
+  background: #e0e0e0;
+}
+
+@media (max-width: 768px) {
+  .filter-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .time-filters {
+    width: 100%;
+  }
+  
+  .filter-btn {
+    flex: 1;
+    text-align: center;
+  }
+  
+  .date-range-inputs {
+    width: 100%;
+  }
+  
+  .date-input {
+    flex: 1;
+    min-width: 140px;
+  }
 }
 
 .btn-primary {
