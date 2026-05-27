@@ -3,9 +3,9 @@ AI 分析服务模块
 使用 OpenAI 兼容 API 对接阿里云 DashScope 大模型
 """
 import os
-import requests
 from typing import Dict, Any, Optional, Tuple, List
 from flask import current_app
+from openai import OpenAI
 
 
 def get_ai_config(app=None):
@@ -55,6 +55,12 @@ class AIAnalysisService:
         self.api_key = config.get('AI_API_KEY')
         self.model_name = config.get('AI_MODEL_NAME')
         self.video_frames_count = config.get('AI_VIDEO_FRAMES_COUNT', 8)
+        
+        # 初始化 OpenAI 客户端（兼容 DashScope）
+        self.client = OpenAI(
+            api_key=self.api_key,
+            base_url=self.api_base_url
+        )
     
     def analyze_video(self, video_url: str, dance_style: str = "") -> Dict[str, Any]:
         """
@@ -171,13 +177,6 @@ class AIAnalysisService:
         Returns:
             (模型返回的文本内容，token 使用量信息)
         """
-        url = f"{self.api_base_url}"
-        
-        headers = {
-            'Authorization': f'Bearer {self.api_key}',
-            'Content-Type': 'application/json'
-        }
-        
         # 构建消息内容，包含视频 URL 和文本
         content_items = []
         
@@ -227,41 +226,34 @@ class AIAnalysisService:
             "text": prompt_text
         })
         
-        # 使用实际配置的模型名称
-        payload = {
-            'model': self.model_name,
-            'messages': [
-                {
-                    'role': 'user',
-                    'content': content_items
-                }
-            ],
-            'temperature': 0.7,
-            'max_tokens': 2000
-        }
-        
         try:
-            response = requests.post(url, json=payload, headers=headers, timeout=60)
-            response.raise_for_status()
-            
-            result = response.json()
+            # 使用 OpenAI SDK 调用
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {
+                        'role': 'user',
+                        'content': content_items
+                    }
+                ],
+                temperature=0.7,
+                max_tokens=2000
+            )
             
             # 提取 token 使用量信息
             usage_info = {}
-            if 'usage' in result:
+            if hasattr(response, 'usage') and response.usage:
                 usage_info = {
-                    'prompt_tokens': result['usage'].get('prompt_tokens', 0),
-                    'completion_tokens': result['usage'].get('completion_tokens', 0),
-                    'total_tokens': result['usage'].get('total_tokens', 0),
+                    'prompt_tokens': response.usage.prompt_tokens,
+                    'completion_tokens': response.usage.completion_tokens,
+                    'total_tokens': response.usage.total_tokens,
                     'model': self.model_name
                 }
             
-            if 'choices' in result and len(result['choices']) > 0:
-                return result['choices'][0]['message']['content'], usage_info
-            else:
-                raise ValueError("API 响应格式异常")
+            # 返回模型响应内容和 token 使用量
+            return response.choices[0].message.content, usage_info
                 
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             raise Exception(f"调用 AI API 失败：{str(e)}")
     
     def _call_llm_api_with_frames(self, frame_paths: List[str], dance_style: str) -> Tuple[str, Dict[str, Any]]:
@@ -290,52 +282,38 @@ class AIAnalysisService:
         Returns:
             (模型返回的文本内容，token 使用量信息)
         """
-        url = f"{self.api_base_url}"
-        
-        headers = {
-            'Authorization': f'Bearer {self.api_key}',
-            'Content-Type': 'application/json'
-        }
-        
-        # 使用实际配置的模型名称，而非固定值
-        payload = {
-            'model': self.model_name,
-            'messages': [
-                {
-                    'role': 'system',
-                    'content': '你是一位专业的舞蹈分析专家，擅长分析舞蹈动作、姿态和技术细节。'
-                },
-                {
-                    'role': 'user',
-                    'content': prompt
-                }
-            ],
-            'temperature': 0.7,
-            'max_tokens': 2000
-        }
-        
         try:
-            response = requests.post(url, json=payload, headers=headers, timeout=30)
-            response.raise_for_status()
-            
-            result = response.json()
+            # 使用 OpenAI SDK 调用
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {
+                        'role': 'system',
+                        'content': '你是一位专业的舞蹈分析专家，擅长分析舞蹈动作、姿态和技术细节。'
+                    },
+                    {
+                        'role': 'user',
+                        'content': prompt
+                    }
+                ],
+                temperature=0.7,
+                max_tokens=2000
+            )
             
             # 提取 token 使用量信息
             usage_info = {}
-            if 'usage' in result:
+            if hasattr(response, 'usage') and response.usage:
                 usage_info = {
-                    'prompt_tokens': result['usage'].get('prompt_tokens', 0),
-                    'completion_tokens': result['usage'].get('completion_tokens', 0),
-                    'total_tokens': result['usage'].get('total_tokens', 0),
+                    'prompt_tokens': response.usage.prompt_tokens,
+                    'completion_tokens': response.usage.completion_tokens,
+                    'total_tokens': response.usage.total_tokens,
                     'model': self.model_name
                 }
             
-            if 'choices' in result and len(result['choices']) > 0:
-                return result['choices'][0]['message']['content'], usage_info
-            else:
-                raise ValueError("API 响应格式异常")
+            # 返回模型响应内容和 token 使用量
+            return response.choices[0].message.content, usage_info
                 
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             raise Exception(f"调用 AI API 失败：{str(e)}")
     
     def _parse_analysis_result(self, response_text: str) -> Dict[str, Any]:
