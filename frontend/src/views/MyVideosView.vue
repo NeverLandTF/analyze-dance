@@ -303,8 +303,6 @@ const analyzeVideo = async (video) => {
     delete analyzingVideos[video.id]
     // 重新加载视频列表以更新分析状态
     await loadVideos()
-    // 跳转到最新分析结果页面
-    router.push(`/analysis/${video.id}`)
   } catch (error) {
     console.error('AI 分析失败:', error)
     // 分析失败，移除分析中状态
