@@ -343,33 +343,41 @@ class AIAnalysisService:
         try:
             result = json.loads(json_str)
             
-            # 确保返回格式符合预期
+            # 确保返回格式符合预期，并映射到前端期望的字段名
+            technical_analysis = result.get('technical_analysis', {})
+            movement_quality = result.get('movement_quality', {})
+            
             formatted_result = {
                 'pose_detection': result.get('pose_detection', {
                     'confidence': 0.8,
                     'keypoints': [],
                     'issues': []
                 }),
-                'movement_quality': result.get('movement_quality', {
-                    'score': 75.0,
-                    'feedback': '请提供更多视频信息以便进行详细分析'
-                }),
+                'movement_quality': movement_quality,
                 'comparison_with_previous': {
                     'improvement': 'N/A',
-                    'areas_to_focus': result.get('technical_analysis', {}).get('areas_to_improve', [])
+                    'areas_to_focus': technical_analysis.get('areas_to_improve', [])
                 },
-                'technical_analysis': result.get('technical_analysis', {
-                    'strengths': [],
-                    'areas_to_improve': []
-                }),
+                'technical_analysis': technical_analysis,
+                # 映射到前端期望的字段名
                 'overall_score': result.get('overall_score', 75),
+                'technique_score': movement_quality.get('score', 75),  # 使用 movement_quality.score 作为 technique_score
+                'rhythm_score': movement_quality.get('rhythm', 75),
+                'expression_score': movement_quality.get('flow', 75),  # 使用 flow 作为 expression_score
+                'completeness_score': movement_quality.get('power', 75),  # 使用 power 作为 completeness_score
+                # 映射 strengths 和 improvements
+                'strengths': technical_analysis.get('strengths', []),
+                'improvements': technical_analysis.get('areas_to_improve', []),
+                # 添加 movements 和 suggestions（如果 AI 返回的话）
+                'movements': result.get('movements', []),
+                'suggestions': result.get('suggestions', []),
                 'summary': result.get('summary', '')
             }
             
             return formatted_result
             
         except json.JSONDecodeError as e:
-            # 如果解析失败，返回默认结果
+            # 如果解析失败，返回默认结果（包含前端期望的所有字段）
             return {
                 'pose_detection': {
                     'confidence': 0.8,
@@ -389,6 +397,14 @@ class AIAnalysisService:
                     'areas_to_improve': []
                 },
                 'overall_score': 75,
+                'technique_score': 75,
+                'rhythm_score': 75,
+                'expression_score': 75,
+                'completeness_score': 75,
+                'strengths': [],
+                'improvements': [],
+                'movements': [],
+                'suggestions': [],
                 'summary': response_text[:500]  # 返回原始响应的部分内容
             }
 

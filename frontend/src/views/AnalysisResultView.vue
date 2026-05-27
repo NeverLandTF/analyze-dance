@@ -255,7 +255,15 @@ const loadAnalysis = async () => {
     videoInfo.value = response
     
     if (response.analyses && response.analyses.length > 0) {
-      analysis.value = response.analyses[0]
+      // 将 result_data 中的数据合并到 analysis 对象中，以便模板可以直接访问
+      const latestAnalysis = response.analyses[0]
+      analysis.value = {
+        ...latestAnalysis.result_data,  // 展开 result_data 中的字段（overall_score, strengths, improvements 等）
+        id: latestAnalysis.id,
+        analysis_type: latestAnalysis.analysis_type,
+        confidence_score: latestAnalysis.confidence_score,
+        analyzed_at: latestAnalysis.processed_at  // 使用 processed_at 作为 analyzed_at
+      }
     } else {
       analysis.value = null
     }
