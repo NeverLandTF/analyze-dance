@@ -605,19 +605,19 @@ const handleAnalyzeSingle = async (video) => {
     // 无论成功失败都移除分析状态
     analyzingVideoIds.value.delete(video.id)
   }
-}
 
 // 开始 AI 分析（旧版，兼容单个视频）
 const handleAnalyze = async () => {
   if (!uploadedVideo.value) return
-  
+
   // 如果是数组，取第一个
   const video = Array.isArray(uploadedVideo.value) ? uploadedVideo.value[0] : uploadedVideo.value
   if (!video) return
-  
+
   // 将视频 ID 添加到分析中集合
   analyzingVideoIds.value.add(video.id)
-  
+
+  try {
     const videoUrl = getVideoUrl(video.file_path)
     const result = await analysisAPI.analyzeVideo(video.id, userStore.userId, videoUrl)
     // 分析成功后，更新视频的分析状态为 completed
