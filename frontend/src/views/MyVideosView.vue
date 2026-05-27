@@ -771,9 +771,16 @@ const handleLogout = () => {
   background: white;
   cursor: pointer;
   transition: border-color 0.2s;
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: textfield;
+}
+
+.date-input-wrapper input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  cursor: pointer;
 }
 
 .date-input-wrapper:focus-within {
@@ -801,17 +808,16 @@ const handleLogout = () => {
   background: white;
   cursor: pointer;
   transition: border-color 0.2s;
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: textfield;
 }
 
-.date-input-wrapper:focus-within {
-  outline: none;
-}
-
-.date-input-wrapper:focus-within input[type="date"] {
-  border-color: #667eea;
+.date-input-wrapper input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  cursor: pointer;
 }
 
 .date-separator {

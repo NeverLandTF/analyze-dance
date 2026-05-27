@@ -207,7 +207,7 @@ const loadAnalyses = async () => {
   try {
     loading.value = true
     const result = await analysisAPI.getAnalysisHistory(userStore.userId)
-    analyses.value = result || []
+    analyses.value = result.analyses || []
   } catch (error) {
     console.error('加载分析历史失败:', error)
     analyses.value = []
@@ -600,9 +600,16 @@ const handleLogout = () => {
   background: white;
   cursor: pointer;
   transition: border-color 0.2s;
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: textfield;
+}
+
+.date-input-wrapper input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  cursor: pointer;
 }
 
 .date-input-wrapper:focus-within {
