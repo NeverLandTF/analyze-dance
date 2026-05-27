@@ -135,7 +135,6 @@ export const videoAPI = {
 export const analysisAPI = {
   // 分析视频
   analyzeVideo(videoId, userId) {
-    console.log('analysisAPI.analyzeVideo called with:', { videoId, userId })
     return api.post('/analyze', { video_id: videoId, user_id: userId })
   },
   
