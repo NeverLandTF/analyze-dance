@@ -302,8 +302,13 @@ const analyzeVideo = async (video) => {
     const result = await analysisAPI.analyzeVideo(video.id, userStore.userId)
     // 分析成功，移除分析中状态
     delete analyzingVideos[video.id]
-    // 刷新视频列表以获取最新的分析状态
-    await loadVideos()
+    // 单独获取该视频的详情以更新 analyses 字段，避免刷新整个列表导致状态丢失
+    const videoDetail = await videoAPI.getVideo(video.id)
+    // 在 videos 数组中找到并更新该视频对象
+    const index = videos.value.findIndex(v => v.id === video.id)
+    if (index !== -1) {
+      videos.value[index] = videoDetail
+    }
   } catch (error) {
     console.error('AI 分析失败:', error)
     // 分析失败，移除分析中状态
