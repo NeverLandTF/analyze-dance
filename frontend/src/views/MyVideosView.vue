@@ -111,9 +111,6 @@
                 <span v-else-if="hasAnalysis(video)">📊 查看</span>
                 <span v-else>🤖 AI 分析</span>
               </button>
-              <button @click="viewAnalysisResult(video)" class="btn-small btn-view-small" v-if="hasAnalysis(video)">
-                📊 查看结果
-              </button>
               <button @click="confirmDeleteVideo(video)" class="btn-small btn-delete-small">
                 🗑️ 删除
               </button>
@@ -302,12 +299,19 @@ const analyzeVideo = async (video) => {
     const result = await analysisAPI.analyzeVideo(video.id, userStore.userId)
     // 分析成功，移除分析中状态
     delete analyzingVideos[video.id]
-    // 单独获取该视频的详情以更新 analyses 字段，避免刷新整个列表导致状态丢失
-    const videoDetail = await videoAPI.getVideo(video.id)
-    // 在 videos 数组中找到并更新该视频对象
-    const index = videos.value.findIndex(v => v.id === video.id)
-    if (index !== -1) {
-      videos.value[index] = videoDetail
+    // 接口返回了 analysis_id，直接更新本地视频的 analyses 字段
+    // 无需调用额外的 getVideo 接口，避免不必要的请求和状态丢失
+    if (result.analysis_id) {
+      // 在 videos 数组中找到对应的视频对象
+      const index = videos.value.findIndex(v => v.id === video.id)
+      if (index !== -1) {
+        // 确保 analyses 数组存在
+        if (!videos.value[index].analyses) {
+          videos.value[index].analyses = []
+        }
+        // 添加新的分析记录（使用返回的 analysis_id）
+        videos.value[index].analyses.push({ id: result.analysis_id })
+      }
     }
   } catch (error) {
     console.error('AI 分析失败:', error)
