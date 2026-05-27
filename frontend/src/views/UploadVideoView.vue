@@ -618,6 +618,7 @@ const handleAnalyze = async () => {
   // 将视频 ID 添加到分析中集合
   analyzingVideoIds.value.add(video.id)
   
+  try {
     const videoUrl = getVideoUrl(video.file_path)
     const result = await analysisAPI.analyzeVideo(video.id, userStore.userId, videoUrl)
     // 分析成功后，更新视频的分析状态为 completed
@@ -655,9 +656,9 @@ const analyzeCurrentPreviewVideo = async () => {
   // 将视频 ID 添加到分析中集合
   analyzingVideoIds.value.add(currentPreviewVideo.value.id)
   
+  try {
     const videoUrl = getVideoUrl(currentPreviewVideo.value.file_path)
     const result = await analysisAPI.analyzeVideo(currentPreviewVideo.value.id, userStore.userId, videoUrl)
-    const result = await analysisAPI.analyzeVideo(currentPreviewVideo.value.id, userStore.userId)
     // 分析成功后，更新视频的分析状态为 completed
     currentPreviewVideo.value.analysis_status = 'completed'
   } catch (error) {
