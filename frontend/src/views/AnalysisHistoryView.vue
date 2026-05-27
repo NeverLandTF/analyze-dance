@@ -86,20 +86,24 @@
         <div class="filter-group date-range-group">
           <label class="filter-label">自定义范围：</label>
           <div class="date-range-inputs">
-            <input 
-              type="date" 
-              v-model="startDate" 
-              class="date-input"
-              :max="endDate || new Date().toISOString().split('T')[0]"
-            />
+            <div class="date-input-wrapper">
+              <input 
+                type="date" 
+                v-model="startDate" 
+                class="date-input"
+                :max="endDate || new Date().toISOString().split('T')[0]"
+              />
+            </div>
             <span class="date-separator">至</span>
-            <input 
-              type="date" 
-              v-model="endDate" 
-              class="date-input"
-              :min="startDate"
-              :max="new Date().toISOString().split('T')[0]"
-            />
+            <div class="date-input-wrapper">
+              <input 
+                type="date" 
+                v-model="endDate" 
+                class="date-input"
+                :min="startDate"
+                :max="new Date().toISOString().split('T')[0]"
+              />
+            </div>
             <button @click="applyDateRange" class="btn-apply-date">应用</button>
             <button @click="clearDateRange" class="btn-clear-date">清除</button>
           </div>
@@ -579,7 +583,15 @@ const handleLogout = () => {
   flex-wrap: wrap;
 }
 
-.date-input {
+.date-input-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 140px;
+  display: flex;
+}
+
+.date-input-wrapper input[type="date"] {
+  width: 100%;
   padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
@@ -588,10 +600,16 @@ const handleLogout = () => {
   background: white;
   cursor: pointer;
   transition: border-color 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
 }
 
-.date-input:focus {
+.date-input-wrapper:focus-within {
   outline: none;
+}
+
+.date-input-wrapper:focus-within input[type="date"] {
   border-color: #667eea;
 }
 
