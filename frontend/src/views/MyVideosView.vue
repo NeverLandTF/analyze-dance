@@ -302,7 +302,8 @@ const analyzeVideo = async (video) => {
     const result = await analysisAPI.analyzeVideo(video.id, userStore.userId)
     // 分析成功，移除分析中状态
     delete analyzingVideos[video.id]
-    // 不自动刷新页面，保持当前状态，按钮状态会自动变化
+    // 刷新视频列表以获取最新的分析状态
+    await loadVideos()
   } catch (error) {
     console.error('AI 分析失败:', error)
     // 分析失败，移除分析中状态
