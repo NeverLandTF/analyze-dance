@@ -272,7 +272,7 @@ def get_videos_summary():
 @video_bp.route('/videos/<int:video_id>', methods=['GET'])
 @token_required
 def get_video(video_id):
-    """获取单个视频详情（需要 JWT 认证）"""
+    """获取单个视频详情（需要 JWT 认证）- 不再包含 analyses 字段"""
     current_user = request.current_user
     
     video = Video.query.get_or_404(video_id)
@@ -289,7 +289,23 @@ def get_video(video_id):
         'duration': video.duration,
         'upload_date': video.upload_date.isoformat() if video.upload_date else None,
         'dance_style': video.dance_style,
-        'dancer_id': video.dancer_id,
+        'dancer_id': video.dancer_id
+    })
+
+
+@video_bp.route('/videos/<int:video_id>/analyses', methods=['GET'])
+@token_required
+def get_video_analyses(video_id):
+    """获取单个视频的分析结果列表（需要 JWT 认证）"""
+    current_user = request.current_user
+    
+    video = Video.query.get_or_404(video_id)
+    
+    # 权限验证：普通用户只能查看自己的视频，管理员可以查看所有视频
+    if not current_user.get('is_admin', False) and video.user_id != current_user.get('user_id'):
+        return jsonify({'error': 'Permission denied. You can only view your own videos.'}), 403
+    
+    return jsonify({
         'analyses': [{
             'id': a.id,
             'analysis_type': a.analysis_type,
