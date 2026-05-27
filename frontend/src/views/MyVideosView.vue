@@ -103,12 +103,19 @@
                 ▶ 预览
               </button>
               <button 
+                v-if="hasAnalysis(video)"
+                @click="viewAnalysisResult(video)" 
+                class="btn-small btn-analyze-small"
+              >
+                📊 查看
+              </button>
+              <button 
+                v-else
                 @click="analyzeVideo(video)" 
                 class="btn-small btn-analyze-small"
                 :disabled="analyzingVideos[video.id]"
               >
                 <span v-if="analyzingVideos[video.id]" class="loading-spinner">⏳</span>
-                <span v-else-if="hasAnalysis(video)">📊 查看</span>
                 <span v-else>🤖 AI 分析</span>
               </button>
               <button @click="confirmDeleteVideo(video)" class="btn-small btn-delete-small">
@@ -152,16 +159,20 @@
         </div>
         <div class="modal-footer">
           <button 
+            v-if="currentVideo && hasAnalysis(currentVideo)"
+            @click="viewCurrentAnalysis" 
+            class="btn-analyze"
+          >
+            📊 查看最新分析
+          </button>
+          <button 
+            v-else
             @click="analyzeCurrentVideo" 
             class="btn-analyze"
             :disabled="currentVideo && analyzingVideos[currentVideo.id]"
           >
             <span v-if="currentVideo && analyzingVideos[currentVideo.id]" class="loading-spinner">⏳</span>
-            <span v-else-if="currentVideo && hasAnalysis(currentVideo)">📊 查看最新分析</span>
             <span v-else>🤖 开始 AI 分析</span>
-          </button>
-          <button @click="viewCurrentAnalysis" class="btn-secondary" v-if="hasAnalysis(currentVideo)">
-            📊 查看分析结果
           </button>
         </div>
       </div>
