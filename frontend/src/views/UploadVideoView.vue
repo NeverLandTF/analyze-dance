@@ -194,8 +194,8 @@
                   ⏳ 分析中...
                 </button>
                 <button 
-                  v-else-if="video.analysis_status === 'completed'" 
-                  @click="router.push(`/analysis/${video.id}`)" 
+                  v-else-if="hasAnalysis(video)" 
+                  @click="viewAnalysisResult(video)" 
                   class="btn-view-analysis"
                 >
                   📊 点击查看分析
@@ -249,8 +249,8 @@
               ⏳ 分析中...
             </button>
             <button 
-              v-else-if="uploadedVideo.analysis_status === 'completed'" 
-              @click="router.push(`/analysis/${uploadedVideo.id}`)" 
+              v-else-if="hasAnalysis(uploadedVideo)" 
+              @click="viewAnalysisResult(uploadedVideo)" 
               class="btn-view-analysis"
             >
               📊 点击查看分析
@@ -303,8 +303,8 @@
                 ⏳ 分析中...
               </button>
               <button 
-                v-else-if="currentPreviewVideo?.analysis_status === 'completed'" 
-                @click="router.push(`/analysis/${currentPreviewVideo.id}`)" 
+                v-else-if="currentPreviewVideo && hasAnalysis(currentPreviewVideo)" 
+                @click="viewAnalysisResult(currentPreviewVideo)" 
                 class="btn-view-analysis"
               >
                 📊 点击查看分析
@@ -383,6 +383,8 @@ const loading = ref(false)
 
 // 分析状态 - 存储正在分析的视频 ID 集合
 const analyzingVideoIds = ref(new Set())
+// 记录每个视频最新分析的 analysis_id（调用 /analyze 接口返回的）
+const latestAnalysisIds = reactive({})
 
 // 计算属性
 const canUpload = computed(() => {
@@ -594,15 +596,44 @@ const handleAnalyzeSingle = async (video) => {
   analyzingVideoIds.value.add(video.id)
   
   try {
-    const videoUrl = getVideoUrl(video.file_path)
-    const result = await analysisAPI.analyzeVideo(video.id, userStore.userId, videoUrl)
-    // 分析成功后，更新视频的分析状态为 completed
-    video.analysis_status = 'completed'
+    const result = await analysisAPI.analyzeVideo(video.id, userStore.userId)
+    // 分析成功，移除分析中状态
+    analyzingVideoIds.value.delete(video.id)
+    // 接口返回了 analysis_id，保存到这个 video 对应的最新 analysis_id
+    if (result.analysis_id) {
+      latestAnalysisIds[video.id] = result.analysis_id
+      
+      // 更新 uploadedVideo 中对应视频的分析记录
+      if (uploadedVideo.value) {
+        if (Array.isArray(uploadedVideo.value)) {
+          const index = uploadedVideo.value.findIndex(v => v.id === video.id)
+          if (index !== -1) {
+            if (!uploadedVideo.value[index].analyses) {
+              uploadedVideo.value[index].analyses = []
+            }
+            uploadedVideo.value[index].analyses.push({ id: result.analysis_id })
+          }
+        } else {
+          // 单个视频对象
+          if (!uploadedVideo.value.analyses) {
+            uploadedVideo.value.analyses = []
+          }
+          uploadedVideo.value.analyses.push({ id: result.analysis_id })
+        }
+      }
+      
+      // 如果当前预览的是这个视频，也更新它
+      if (currentPreviewVideo.value && currentPreviewVideo.value.id === video.id) {
+        if (!currentPreviewVideo.value.analyses) {
+          currentPreviewVideo.value.analyses = []
+        }
+        currentPreviewVideo.value.analyses.push({ id: result.analysis_id })
+      }
+    }
   } catch (error) {
     console.error('AI 分析失败:', error)
     showToast('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'), 'error')
-  } finally {
-    // 无论成功失败都移除分析状态
+    // 分析失败，移除分析中状态
     analyzingVideoIds.value.delete(video.id)
   }
 }
@@ -619,15 +650,42 @@ const handleAnalyze = async () => {
   analyzingVideoIds.value.add(video.id)
   
   try {
-    const videoUrl = getVideoUrl(video.file_path)
-    const result = await analysisAPI.analyzeVideo(video.id, userStore.userId, videoUrl)
-    // 分析成功后，更新视频的分析状态为 completed
-    video.analysis_status = 'completed'
+    const result = await analysisAPI.analyzeVideo(video.id, userStore.userId)
+    // 分析成功，移除分析中状态
+    analyzingVideoIds.value.delete(video.id)
+    // 接口返回了 analysis_id，保存到这个 video 对应的最新 analysis_id
+    if (result.analysis_id) {
+      latestAnalysisIds[video.id] = result.analysis_id
+      
+      // 更新 uploadedVideo 中对应视频的分析记录
+      if (Array.isArray(uploadedVideo.value)) {
+        const index = uploadedVideo.value.findIndex(v => v.id === video.id)
+        if (index !== -1) {
+          if (!uploadedVideo.value[index].analyses) {
+            uploadedVideo.value[index].analyses = []
+          }
+          uploadedVideo.value[index].analyses.push({ id: result.analysis_id })
+        }
+      } else {
+        // 单个视频对象
+        if (!uploadedVideo.value.analyses) {
+          uploadedVideo.value.analyses = []
+        }
+        uploadedVideo.value.analyses.push({ id: result.analysis_id })
+      }
+      
+      // 如果当前预览的是这个视频，也更新它
+      if (currentPreviewVideo.value && currentPreviewVideo.value.id === video.id) {
+        if (!currentPreviewVideo.value.analyses) {
+          currentPreviewVideo.value.analyses = []
+        }
+        currentPreviewVideo.value.analyses.push({ id: result.analysis_id })
+      }
+    }
   } catch (error) {
     console.error('AI 分析失败:', error)
     showToast('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'), 'error')
-  } finally {
-    // 无论成功失败都移除分析状态
+    // 分析失败，移除分析中状态
     analyzingVideoIds.value.delete(video.id)
   }
 }
@@ -657,15 +715,41 @@ const analyzeCurrentPreviewVideo = async () => {
   analyzingVideoIds.value.add(currentPreviewVideo.value.id)
   
   try {
-    const videoUrl = getVideoUrl(currentPreviewVideo.value.file_path)
-    const result = await analysisAPI.analyzeVideo(currentPreviewVideo.value.id, userStore.userId, videoUrl)
-    // 分析成功后，更新视频的分析状态为 completed
-    currentPreviewVideo.value.analysis_status = 'completed'
+    const result = await analysisAPI.analyzeVideo(currentPreviewVideo.value.id, userStore.userId)
+    // 分析成功，移除分析中状态
+    analyzingVideoIds.value.delete(currentPreviewVideo.value.id)
+    // 接口返回了 analysis_id，保存到这个 video 对应的最新 analysis_id
+    if (result.analysis_id) {
+      latestAnalysisIds[currentPreviewVideo.value.id] = result.analysis_id
+      
+      // 更新 currentPreviewVideo 的分析记录
+      if (!currentPreviewVideo.value.analyses) {
+        currentPreviewVideo.value.analyses = []
+      }
+      currentPreviewVideo.value.analyses.push({ id: result.analysis_id })
+      
+      // 同时更新 uploadedVideo 中对应的视频
+      if (uploadedVideo.value) {
+        if (Array.isArray(uploadedVideo.value)) {
+          const index = uploadedVideo.value.findIndex(v => v.id === currentPreviewVideo.value.id)
+          if (index !== -1) {
+            if (!uploadedVideo.value[index].analyses) {
+              uploadedVideo.value[index].analyses = []
+            }
+            uploadedVideo.value[index].analyses.push({ id: result.analysis_id })
+          }
+        } else {
+          if (!uploadedVideo.value.analyses) {
+            uploadedVideo.value.analyses = []
+          }
+          uploadedVideo.value.analyses.push({ id: result.analysis_id })
+        }
+      }
+    }
   } catch (error) {
     console.error('AI 分析失败:', error)
     showToast('AI 分析失败：' + (error.response?.data?.error || '请稍后重试'), 'error')
-  } finally {
-    // 无论成功失败都移除分析状态
+    // 分析失败，移除分析中状态
     analyzingVideoIds.value.delete(currentPreviewVideo.value.id)
   }
 }
@@ -695,6 +779,36 @@ const getDanceStyleName = (style) => {
     'other': '其他'
   }
   return styleMap[style] || style
+}
+
+// 检查是否有分析结果（通过 latestAnalysisIds 判断）
+const hasAnalysis = (video) => {
+  if (!video) return false
+  return !!latestAnalysisIds[video.id] || (video.analyses && video.analyses.length > 0)
+}
+
+// 获取最新的分析 ID - 优先使用调用/analyze接口返回的analysis_id
+const getLatestAnalysisId = (video) => {
+  if (!video) return null
+  // 优先使用调用/analyze接口返回的 analysis_id
+  if (latestAnalysisIds[video.id]) {
+    return latestAnalysisIds[video.id]
+  }
+  // 如果没有，则从 video.analyses 中获取最后一个
+  if (!video.analyses || video.analyses.length === 0) {
+    return null
+  }
+  return video.analyses[video.analyses.length - 1].id
+}
+
+// 查看分析结果 - 使用 analysis id 而不是 video id
+const viewAnalysisResult = (video) => {
+  const analysisId = getLatestAnalysisId(video)
+  if (analysisId) {
+    router.push(`/analysis/${analysisId}`)
+  } else {
+    showToast('未找到分析结果', 'error')
+  }
 }
 
 // 视频播放器引用
