@@ -63,6 +63,11 @@ def upload_video_file():
     ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else 'mp4'
     unique_filename = f"{uuid.uuid4().hex}.{ext}"
     
+    # 获取文件大小
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+    
     # 保存到 videos 子目录
     video_subfolder = os.environ.get('VIDEO_SUBFOLDER', 'videos')
     upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
@@ -87,6 +92,8 @@ def upload_video_file():
         dancer_id=dancer_id,  # dancer_id 已经是整数了
         title=title,
         file_path=f'/uploads/{video_subfolder}/{unique_filename}',
+        file_format=ext,
+        file_size=file_size,
         thumbnail_url=thumbnail_url,
         duration=duration,
         dance_style=dance_style
@@ -99,6 +106,8 @@ def upload_video_file():
         'message': 'Video uploaded successfully',
         'id': video.id,
         'file_path': video.file_path,
+        'file_format': video.file_format,
+        'file_size': video.file_size,
         'thumbnail_url': video.thumbnail_url,
         'duration': video.duration,
         'title': video.title,
@@ -210,6 +219,8 @@ def get_videos():
             'id': v.id,
             'title': v.title,
             'file_path': v.file_path,
+            'file_format': v.file_format,
+            'file_size': v.file_size,
             'thumbnail_url': v.thumbnail_url,
             'duration': v.duration,
             'upload_date': v.upload_date.isoformat() if v.upload_date else None,
@@ -249,6 +260,9 @@ def get_videos_summary():
     videos = db.session.query(
         Video.id,
         Video.title,
+        Video.file_path,
+        Video.file_format,
+        Video.file_size,
         Video.thumbnail_url,
         Video.duration,
         Video.upload_date,
@@ -260,6 +274,9 @@ def get_videos_summary():
         'videos': [{
             'id': v.id,
             'title': v.title,
+            'file_path': v.file_path,
+            'file_format': v.file_format,
+            'file_size': v.file_size,
             'thumbnail_url': v.thumbnail_url,
             'duration': v.duration,
             'upload_date': v.upload_date.isoformat() if v.upload_date else None,
@@ -285,6 +302,8 @@ def get_video(video_id):
         'id': video.id,
         'title': video.title,
         'file_path': video.file_path,
+        'file_format': video.file_format,
+        'file_size': video.file_size,
         'thumbnail_url': video.thumbnail_url,
         'duration': video.duration,
         'upload_date': video.upload_date.isoformat() if video.upload_date else None,

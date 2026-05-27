@@ -128,7 +128,7 @@
             />
             <div v-else class="thumbnail-placeholder">
               <span class="play-icon">▶</span>
-              <span class="video-duration">{{ video.duration || '--:--' }}</span>
+              <span class="video-duration">{{ formatDuration(video.duration) }}</span>
             </div>
             <div class="thumbnail-overlay">
               <span class="preview-text">点击预览</span>
@@ -138,7 +138,7 @@
             <h3>{{ video.title }}</h3>
             <p class="video-meta">
               <span v-if="video.dance_style" class="dance-style">{{ getDanceStyleName(video.dance_style) }}</span>
-              <span class="upload-date">{{ formatDate(video.upload_date) }}</span>
+              <span class="upload-date" :title="formatDateTime(video.upload_date)">{{ formatDate(video.upload_date) }}</span>
             </p>
             <div class="video-actions">
               <button @click="openPreviewModal(video)" class="btn-small">
@@ -199,7 +199,15 @@
             </div>
             <div class="detail-item">
               <span class="label">时长：</span>
-              <span class="value">{{ currentVideo?.duration || '--:--' }}</span>
+              <span class="value">{{ formatDuration(currentVideo?.duration) }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">文件格式：</span>
+              <span class="value">{{ currentVideo?.file_format?.toUpperCase() || '--' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">文件大小：</span>
+              <span class="value">{{ formatFileSize(currentVideo?.file_size) }}</span>
             </div>
           </div>
         </div>
@@ -508,6 +516,34 @@ const formatDateTime = (dateStr) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
   return date.toLocaleString('zh-CN')
+}
+
+// 格式化视频时长（秒转换为 MM:SS 或 HH:MM:SS）
+const formatDuration = (seconds) => {
+  if (!seconds || seconds <= 0) return '--:--'
+  const hrs = Math.floor(seconds / 3600)
+  const mins = Math.floor((seconds % 3600) / 60)
+  const secs = Math.floor(seconds % 60)
+  
+  if (hrs > 0) {
+    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+}
+
+// 格式化文件大小
+const formatFileSize = (bytes) => {
+  if (!bytes || bytes <= 0) return '--'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let unitIndex = 0
+  let size = bytes
+  
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024
+    unitIndex++
+  }
+  
+  return `${size.toFixed(size < 10 && unitIndex > 0 ? 2 : 1)} ${units[unitIndex]}`
 }
 
 // 获取舞蹈风格名称
@@ -1203,6 +1239,12 @@ const handleLogout = () => {
 
 .upload-date {
   color: #999;
+  cursor: help;
+  transition: color 0.2s;
+}
+
+.upload-date:hover {
+  color: #667eea;
 }
 
 .video-actions {
