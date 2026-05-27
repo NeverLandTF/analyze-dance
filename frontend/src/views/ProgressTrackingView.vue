@@ -226,7 +226,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { progressAPI, videoAPI, userAPI } from '../api/modules'
+import { progressAPI, videoAPI, analysisAPI, userAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
@@ -261,16 +261,21 @@ const loading = ref(true)
 const error = ref('')
 const progressData = ref(null)
 const dancerName = ref('舞者')
+const videoAnalysesMap = ref({}) // 存储每个视频的分析结果
 
 const latestAnalysis = computed(() => {
   if (!progressData.value || !progressData.value.videos || progressData.value.videos.length === 0) {
     return null
   }
   // 找到最后一个有分析的视频
-  const analyzedVideos = progressData.value.videos.filter(v => v.analyses && v.analyses.length > 0)
+  const analyzedVideos = progressData.value.videos.filter(v => {
+    const analyses = videoAnalysesMap.value[v.id] || v.analyses
+    return analyses && analyses.length > 0
+  })
   if (analyzedVideos.length === 0) return null
   const latest = analyzedVideos[analyzedVideos.length - 1]
-  return latest.analyses[0]
+  const analyses = videoAnalysesMap.value[latest.id] || latest.analyses
+  return analyses[0]
 })
 
 const loadProgress = async () => {
@@ -288,7 +293,7 @@ const loadProgress = async () => {
       console.error('获取舞者信息失败:', e)
     }
     
-    // 获取进步追踪数据
+    // 获取进步追踪数据（后端已返回包含 analyses 的视频列表）
     try {
       const response = await progressAPI.getProgress(dancerId)
       progressData.value = response
@@ -297,6 +302,16 @@ const loadProgress = async () => {
       if (!progressData.value.videos && response.videos) {
         progressData.value.videos = response.videos
       }
+      
+      // 为每个有分析的视频加载 analyses 数据（使用新接口）
+      if (progressData.value.videos) {
+        for (const video of progressData.value.videos) {
+          if (video.analyses && video.analyses.length > 0) {
+            // 已经有 analyses 数据，直接使用
+            videoAnalysesMap.value[video.id] = video.analyses
+          }
+        }
+      }
     } catch (e) {
       console.error('获取进步数据失败:', e)
       // 尝试直接获取视频列表
@@ -304,9 +319,31 @@ const loadProgress = async () => {
       if (videosRes.videos && videosRes.videos.length > 0) {
         progressData.value = {
           videos: videosRes.videos,
-          analyzedCount: videosRes.videos.filter(v => v.analyses && v.analyses.length > 0).length,
-          latestScore: videosRes.videos.filter(v => v.analyses && v.analyses.length > 0).pop()?.analyses?.[0]?.overall_score || 0,
+          analyzedCount: 0,
+          latestScore: 0,
           improvement: 0
+        }
+        
+        // 为每个视频单独获取 analyses 数据
+        for (const video of videosRes.videos) {
+          try {
+            const analysesRes = await analysisAPI.getAnalysisResults(video.id)
+            videoAnalysesMap.value[video.id] = analysesRes
+            if (analysesRes && analysesRes.length > 0) {
+              progressData.value.analyzedCount++
+              progressData.value.latestScore = analysesRes[0]?.result_data?.overall_score || 0
+            }
+          } catch (err) {
+            console.warn(`获取视频 ${video.id} 的分析结果失败:`, err)
+          }
+        }
+        
+        // 计算进步幅度
+        const analyzedVideos = progressData.value.videos.filter(v => videoAnalysesMap.value[v.id]?.length > 0)
+        if (analyzedVideos.length >= 2) {
+          const firstScore = videoAnalysesMap.value[analyzedVideos[0].id]?.[0]?.result_data?.overall_score || 0
+          const lastScore = videoAnalysesMap.value[analyzedVideos[analyzedVideos.length - 1].id]?.[0]?.result_data?.overall_score || 0
+          progressData.value.improvement = Math.round((lastScore - firstScore) * 10) / 10
         }
       } else {
         progressData.value = { videos: [] }
@@ -357,7 +394,8 @@ const getDanceStyleName = (style) => {
 }
 
 const viewVideoAnalysis = (video) => {
-  if (video.analyses && video.analyses.length > 0) {
+  const analyses = videoAnalysesMap.value[video.id] || video.analyses
+  if (analyses && analyses.length > 0) {
     router.push(`/analysis/${video.id}`)
   } else {
     showToast('该视频尚未进行 AI 分析', 'warning')

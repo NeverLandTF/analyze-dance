@@ -130,9 +130,14 @@ export const videoAPI = {
     return api.get(url)
   },
   
-  // 获取单个视频详情
+  // 获取单个视频详情（不再包含 analyses 字段）
   getVideo(videoId) {
     return api.get(`/videos/${videoId}`)
+  },
+  
+  // 获取单个视频的分析结果列表（新增接口）
+  getVideoAnalyses(videoId) {
+    return api.get(`/videos/${videoId}/analyses`)
   },
   
   // 删除视频
@@ -152,9 +157,9 @@ export const analysisAPI = {
     return api.post('/analyze', { video_id: videoId, user_id: userId, video_url: videoUrl })
   },
   
-  // 获取视频分析结果
+  // 获取视频分析结果（使用新的专用接口）
   getAnalysisResults(videoId) {
-    return api.get(`/videos/${videoId}`).then(res => res.analyses || [])
+    return api.get(`/videos/${videoId}/analyses`).then(res => res.analyses || [])
   },
 
   // 获取分析详情（新增接口）
