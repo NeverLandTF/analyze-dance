@@ -68,6 +68,19 @@
         </button>
       </div>
       
+      <!-- 舞者选择器 (仅管理员) -->
+      <div v-if="userStore.isAdmin" class="dancer-filter-section">
+        <div class="filter-group">
+          <label class="filter-label">👤 选择舞者：</label>
+          <select v-model="selectedDancerId" @change="handleDancerChange" class="dancer-select">
+            <option value="">全部舞者</option>
+            <option v-for="dancer in dancers" :key="dancer.id" :value="dancer.id">
+              {{ dancer.username }}
+            </option>
+          </select>
+        </div>
+      </div>
+      
       <!-- 时间过滤器 -->
       <div class="filter-section">
         <div class="filter-group">
@@ -194,6 +207,10 @@ const handleClickOutside = (event) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  // 如果是管理员，加载舞者列表
+  if (userStore.isAdmin) {
+    loadDancers()
+  }
   loadAnalyses().then(() => {
     // 加载完成后，检查是否有 hash 用于滚动定位
     scrollToAnalysisFromHash()

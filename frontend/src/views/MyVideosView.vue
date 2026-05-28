@@ -67,6 +67,19 @@
         </button>
       </div>
       
+      <!-- 舞者选择器 (仅管理员) -->
+      <div v-if="userStore.isAdmin" class="dancer-filter-section">
+        <div class="filter-group">
+          <label class="filter-label">👤 选择舞者：</label>
+          <select v-model="selectedDancerId" @change="handleDancerChange" class="dancer-select">
+            <option value="">全部舞者</option>
+            <option v-for="dancer in dancers" :key="dancer.id" :value="dancer.id">
+              {{ dancer.username }}
+            </option>
+          </select>
+        </div>
+      </div>
+      
       <!-- 时间过滤器 -->
       <div class="filter-section">
         <div class="filter-group">
@@ -289,6 +302,10 @@ const setupInfiniteScroll = () => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  // 如果是管理员，加载舞者列表
+  if (userStore.isAdmin) {
+    loadDancers()
+  }
   loadVideos().then(() => {
     // 初始加载后设置无限滚动
     setupInfiniteScroll()
@@ -318,6 +335,10 @@ const loading = ref(false)
 const analyzingVideos = reactive({})
 // 记录每个视频最新分析的 analysis_id（调用 /analyze 接口返回的）
 const latestAnalysisIds = reactive({})
+
+// 舞者过滤相关 (仅管理员)
+const selectedDancerId = ref('')
+const dancers = ref([])
 
 // 分页相关
 const currentPage = ref(1)
@@ -387,7 +408,9 @@ const loadVideos = async (isLoadMore = false) => {
     }
     
     const dateRange = getDateRangeFromFilter()
-    const response = await videoAPI.getVideos(userStore.userId, null, {
+    // 如果是管理员且选择了舞者，传递 dancer_id 参数
+    const dancerId = userStore.isAdmin && selectedDancerId.value ? selectedDancerId.value : null
+    const response = await videoAPI.getVideos(userStore.userId, dancerId, {
       page: currentPage.value,
       perPage: perPage,
       ...dateRange
@@ -483,6 +506,21 @@ const applyDateRange = () => {
 const handleTimeFilterChange = (value) => {
   selectedTimeFilter.value = value
   loadVideos()
+}
+
+// 舞者选择变化处理
+const handleDancerChange = () => {
+  loadVideos()
+}
+
+// 加载舞者列表 (仅管理员)
+const loadDancers = async () => {
+  try {
+    const response = await userAPI.getUsers(userStore.userId, true)
+    dancers.value = response.users || []
+  } catch (error) {
+    console.error('加载舞者列表失败:', error)
+  }
 }
 
 // 计算后的视频列表（由于后端已经处理了时间过滤，这里直接返回 videos）
@@ -874,6 +912,36 @@ const handleLogout = () => {
 .header h1 {
   font-size: 32px;
   color: #333;
+}
+
+/* 舞者过滤器样式 (仅管理员) */
+.dancer-filter-section {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.dancer-select {
+  padding: 8px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+  min-width: 200px;
+  transition: all 0.2s;
+}
+
+.dancer-select:hover {
+  border-color: #667eea;
+}
+
+.dancer-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 /* 时间过滤器样式 */

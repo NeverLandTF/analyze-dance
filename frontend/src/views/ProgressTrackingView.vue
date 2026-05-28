@@ -75,7 +75,6 @@
         <h1>📊 暂无追踪数据</h1>
         <p>该舞者还没有足够的分析记录来生成进步追踪</p>
         <button @click="$router.push('/upload')" class="btn-primary">去上传视频</button>
-        <button @click="$router.push('/dancers')" class="btn-secondary">返回舞者列表</button>
       </div>
       
       <div v-else class="progress-content">
