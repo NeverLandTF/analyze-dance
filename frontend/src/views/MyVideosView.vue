@@ -250,7 +250,7 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, inject, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { videoAPI, analysisAPI } from '../api/modules'
+import { videoAPI, analysisAPI, userAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
@@ -517,8 +517,13 @@ const handleDancerChange = () => {
 const loadDancers = async () => {
   try {
     const response = await userAPI.getUsers(userStore.userId, true)
-    // 过滤掉管理员，只显示普通用户
-    dancers.value = (response.users || []).filter(u => !u.is_admin)
+    // 过滤掉管理员和没有 dancer_id 的用户，只显示有舞者记录的普通用户
+    dancers.value = (response.users || [])
+      .filter(u => !u.is_admin && u.dancer_id !== null && u.dancer_id !== undefined)
+      .map(u => ({
+        id: u.dancer_id,
+        username: u.username
+      }))
   } catch (error) {
     console.error('加载舞者列表失败:', error)
   }

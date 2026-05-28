@@ -397,17 +397,28 @@ const canUpload = computed(() => {
 const loadUsers = async () => {
   try {
     loading.value = true
+    console.log('开始加载用户列表，isAdmin:', userStore.isAdmin)
     // 仅管理员需要加载用户列表，普通用户直接使用自己的 ID
     if (userStore.isAdmin) {
       const response = await userAPI.getUsers(userStore.userId, userStore.isAdmin)
+      console.log('获取用户列表响应:', response)
       // 过滤掉管理员用户，只保留普通用户作为可选舞者
       users.value = (response.users || []).filter(user => !user.is_admin)
+      console.log('过滤后的用户列表:', users.value)
+      
+      // 检查每个用户的 dancer_id
+      users.value.forEach(u => {
+        console.log(`用户 ${u.username} (id=${u.id}) 的 dancer_id:`, u.dancer_id)
+      })
       
       // 如果有用户且有 dancer_id，自动选择第一个
       if (users.value.length > 0 && selectedDancerId.value === null) {
         const firstUserWithDancer = users.value.find(u => u.dancer_id)
         if (firstUserWithDancer) {
           selectedDancerId.value = firstUserWithDancer.dancer_id
+          console.log('自动选择第一个有 dancer_id 的用户:', firstUserWithDancer.username, 'dancer_id:', selectedDancerId.value)
+        } else {
+          console.warn('所有用户都没有 dancer_id')
         }
       }
     } else {
@@ -417,7 +428,7 @@ const loadUsers = async () => {
     }
   } catch (error) {
     console.error('加载用户列表失败:', error)
-    uploadError.value = '加载用户列表失败'
+    uploadError.value = '加载用户列表失败：' + (error.message || '未知错误')
   } finally {
     loading.value = false
   }
