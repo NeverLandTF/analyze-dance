@@ -596,12 +596,20 @@ const handleLogout = () => {
 .btn-primary {
   padding: 12px 24px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  color: white !important;
   border: none;
   border-radius: 6px;
   font-size: 16px;
   cursor: pointer;
   font-weight: 600;
+}
+
+/* 防止暗色模式影响主按钮 */
+@media (prefers-color-scheme: dark) {
+  .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white !important;
+  }
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -687,7 +695,7 @@ const handleLogout = () => {
   border-radius: 6px;
   font-size: 14px;
   box-sizing: border-box;
-  background: white;
+  background-color: #fff;
   cursor: pointer;
   color: #333;
 }
@@ -695,6 +703,20 @@ const handleLogout = () => {
 .form-select:focus {
   outline: none;
   border-color: #667eea;
+  background-color: #fff;
+}
+
+/* 防止暗色模式影响下拉框 */
+@media (prefers-color-scheme: dark) {
+  .form-select {
+    background-color: #fff;
+    color: #333;
+  }
+  
+  .form-select:focus {
+    background-color: #fff;
+    color: #333;
+  }
 }
 
 .user-card-content {
@@ -760,7 +782,7 @@ const handleLogout = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -769,7 +791,7 @@ const handleLogout = () => {
 }
 
 .modal {
-  background: white;
+  background-color: #fff;
   padding: 40px;
   border-radius: 12px;
   width: 100%;
@@ -778,9 +800,20 @@ const handleLogout = () => {
   overflow-y: auto;
 }
 
-.modal h2 {
-  margin-bottom: 25px;
-  color: #333;
+/* 防止暗色模式影响模态框 */
+@media (prefers-color-scheme: dark) {
+  .modal {
+    background-color: #fff;
+  }
+  
+  .modal h2 {
+    margin-bottom: 25px;
+    color: #333;
+  }
+  
+  .form-group label {
+    color: #555;
+  }
 }
 
 .form-group {
@@ -795,7 +828,8 @@ const handleLogout = () => {
 }
 
 .form-group input,
-.form-group textarea {
+.form-group textarea,
+.form-group select {
   width: 100%;
   padding: 12px;
   border: 1px solid #ddd;
@@ -803,12 +837,38 @@ const handleLogout = () => {
   font-size: 14px;
   box-sizing: border-box;
   color: #333;
+  background-color: #fff;
 }
 
 .form-group input:focus,
-.form-group textarea:focus {
+.form-group textarea:focus,
+.form-group select:focus {
   outline: none;
   border-color: #667eea;
+  background-color: #fff;
+}
+
+/* 确保 placeholder 颜色可见 */
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: #999;
+}
+
+/* 防止暗色模式影响输入框 */
+@media (prefers-color-scheme: dark) {
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    background-color: #fff;
+    color: #333;
+  }
+  
+  .form-group input:focus,
+  .form-group textarea:focus,
+  .form-group select:focus {
+    background-color: #fff;
+    color: #333;
+  }
 }
 
 .modal-actions {
@@ -820,12 +880,25 @@ const handleLogout = () => {
 
 .btn-secondary {
   padding: 12px 24px;
-  background: #f0f0f0;
+  background-color: #f0f0f0;
   color: #333;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
+}
+
+/* 防止暗色模式影响按钮 */
+@media (prefers-color-scheme: dark) {
+  .btn-secondary {
+    background-color: #f0f0f0;
+    color: #333;
+  }
+  
+  .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
 }
 
 /* 移动端适配 */
