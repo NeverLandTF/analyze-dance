@@ -151,13 +151,9 @@ const handleLogout = () => {
   router.push('/login')
 }
 
-// 跳转到进步追踪页面（需要用户 ID）
+// 跳转到进步追踪页面（自动查询当前舞者信息）
 const goToProgressTracking = () => {
-  if (userStore.userId) {
-    router.push(`/progress/${userStore.userId}`)
-  } else {
-    router.push('/login')
-  }
+  router.push('/progress')
 }
 </script>
 

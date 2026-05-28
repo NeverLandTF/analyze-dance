@@ -60,8 +60,14 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/progress/:dancerId',
+    path: '/progress',
     name: 'ProgressTracking',
+    component: () => import('../views/ProgressTrackingView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/progress/:dancerId',
+    name: 'ProgressTrackingWithId',
     component: () => import('../views/ProgressTrackingView.vue'),
     meta: { requiresAuth: true }
   }
