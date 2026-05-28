@@ -308,7 +308,8 @@ def get_video(video_id):
         'duration': video.duration,
         'upload_date': video.upload_date.isoformat() if video.upload_date else None,
         'dance_style': video.dance_style,
-        'dancer_id': video.dancer_id
+        'dancer_id': video.dancer_id,
+        'video_url': video.file_path  # 添加 video_url 字段用于前端预览
     })
 
 
