@@ -84,12 +84,12 @@ def get_progress(user_id):
     analyzed_count = len(analyzed_videos)
     latest_score = analyzed_videos[-1]['overall_score'] if analyzed_videos else 0
     
-    # 计算进步幅度（简单计算最新和最早的分数差）
+    # 计算进步幅度（计算最新两次的分数差）
     improvement = 0
     if len(analyzed_videos) >= 2:
-        first_score = analyzed_videos[0]['overall_score'] or 0
-        last_score = analyzed_videos[-1]['overall_score'] or 0
-        improvement = round(last_score - first_score, 1)
+        latest_score = analyzed_videos[0]['overall_score'] or 0
+        previous_score = analyzed_videos[1]['overall_score'] or 0
+        improvement = round(latest_score - previous_score, 1)
 
     return jsonify({
         'videos': videos_data,
