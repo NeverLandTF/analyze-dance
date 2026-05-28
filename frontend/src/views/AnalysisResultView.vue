@@ -101,20 +101,24 @@
         </div>
         
         <!-- 视频预览弹窗 -->
-        <div v-if="showVideoPreview" class="video-preview-modal" @click="showVideoPreview = false">
-          <div class="video-preview-content" @click.stop>
-            <button class="close-btn" @click="showVideoPreview = false">×</button>
-            <h3>视频预览</h3>
-            <video 
-              v-if="videoInfo?.video_url" 
-              :src="videoInfo.video_url" 
-              controls 
-              autoplay
-              class="preview-video"
-            >
-              您的浏览器不支持视频播放
-            </video>
-            <div v-else class="no-video">暂无视频资源</div>
+        <div v-if="showVideoPreview" class="modal-overlay" @click.self="showVideoPreview = false">
+          <div class="preview-modal">
+            <div class="modal-header">
+              <h2>{{ videoInfo?.title || '视频预览' }}</h2>
+              <button @click="showVideoPreview = false" class="btn-close">×</button>
+            </div>
+            <div class="modal-body">
+              <video 
+                v-if="videoInfo?.video_url" 
+                :src="videoInfo.video_url" 
+                controls 
+                autoplay
+                class="video-player-full"
+              >
+                您的浏览器不支持视频播放
+              </video>
+              <div v-else class="no-video">暂无视频资源</div>
+            </div>
           </div>
         </div>
         
@@ -217,7 +221,7 @@
           <button @click="goBackToHistory" class="btn-secondary">
             ← 返回分析历史
           </button>
-          <button @click="viewProgress" class="btn-primary" v-if="videoInfo?.dancer_id">
+          <button @click="viewProgress" class="btn-primary" v-if="videoInfo?.user_id">
             查看进步追踪
           </button>
         </div>
@@ -352,8 +356,8 @@ const getQualityClass = (quality) => {
 }
 
 const viewProgress = () => {
-  if (videoInfo.value?.dancer_id) {
-    router.push(`/progress/${videoInfo.value.dancer_id}`)
+  if (videoInfo.value?.user_id) {
+    router.push(`/progress/${videoInfo.value.user_id}`)
   }
 }
 
@@ -707,6 +711,31 @@ const handleLogout = () => {
   font-weight: 500;
 }
 
+.video-title-link {
+  cursor: pointer;
+  color: #667eea;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.2s;
+}
+
+.video-title-link:hover {
+  color: #764ba2;
+}
+
+.play-icon {
+  font-size: 12px;
+  background: #667eea;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .score-overview {
   background: white;
   padding: 25px;
@@ -962,6 +991,76 @@ const handleLogout = () => {
   justify-content: center;
   gap: 15px;
   flex-wrap: wrap;
+}
+
+/* 视频预览弹窗样式 - 与其他页面一致 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.preview-modal {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.modal-header h2 {
+  font-size: 22px;
+  color: #333;
+  margin: 0;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+  padding: 5px 10px;
+  transition: color 0.2s;
+}
+
+.btn-close:hover {
+  color: #333;
+}
+
+.modal-body {
+  padding: 25px;
+}
+
+.video-player-full {
+  width: 100%;
+  max-height: 500px;
+  background: #000;
+  border-radius: 8px;
+}
+
+.no-video {
+  text-align: center;
+  color: #999;
+  padding: 40px;
+  font-size: 16px;
 }
 
 /* 移动端适配 */

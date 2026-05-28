@@ -40,25 +40,25 @@ def get_progress_summary(dancer_id):
     }
 
 
-@progress_bp.route('/progress/<int:dancer_id>', methods=['GET'])
+@progress_bp.route('/progress/<int:user_id>', methods=['GET'])
 @token_required
-def get_progress(dancer_id):
-    """获取舞者的进步追踪数据 - 包含视频及分析信息"""
+def get_progress(user_id):
+    """获取用户的进步追踪数据 - 包含视频及分析信息"""
     current_user = request.current_user
     
-    # 查找舞者并验证权限
-    dancer = Dancer.query.get_or_404(dancer_id)
+    # 查找用户并验证权限
+    user = User.query.get_or_404(user_id)
     
     # 权限验证：普通用户只能查看自己的进步记录，管理员可以查看任何记录
-    if not current_user.get('is_admin', False) and dancer.user_id != current_user.get('user_id'):
+    if not current_user.get('is_admin', False) and user.id != current_user.get('user_id'):
         return jsonify({'error': 'Permission denied. You can only view your own progress.'}), 403
     
-    summary = get_progress_summary(dancer_id)
+    summary = get_progress_summary(user_id)
     
-    records = ProgressRecord.query.filter_by(dancer_id=dancer_id).order_by(ProgressRecord.recorded_at.desc()).all()
+    records = ProgressRecord.query.join(Dancer).filter(Dancer.user_id == user_id).order_by(ProgressRecord.recorded_at.desc()).all()
     
-    # 获取该舞者的所有视频及其分析结果
-    videos = Video.query.filter_by(dancer_id=dancer_id).order_by(Video.upload_date.desc()).all()
+    # 获取该用户的所有视频及其分析结果
+    videos = Video.query.filter_by(user_id=user_id).order_by(Video.upload_date.desc()).all()
     
     # 构建包含 analyses 字段的视频列表
     videos_data = [{
@@ -94,7 +94,7 @@ def get_progress(dancer_id):
         improvement = round(last_score - first_score, 1)
 
     return jsonify({
-        'dancer_id': dancer_id,
+        'user_id': user_id,
         'summary': summary,
         'records': [{
             'id': r.id,
