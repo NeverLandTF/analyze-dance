@@ -361,7 +361,9 @@ const getDanceStyleName = (style) => {
 
 const viewVideoAnalysis = (video) => {
   if (video.overall_score !== null && video.overall_score !== undefined) {
-    router.push(`/analysis/${video.id}`)
+    // 使用 analysis_id 而不是 video.id
+    const analysisId = video.analysis_id || video.id
+    router.push(`/analysis/${analysisId}`)
   } else {
     showToast('该视频尚未进行 AI 分析', 'warning')
   }
