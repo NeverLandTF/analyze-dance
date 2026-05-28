@@ -1,7 +1,7 @@
 <template>
   <div class="my-videos-container">
     <nav class="navbar">
-      <div class="nav-brand">🎵 舞蹈 AI 分析</div>
+      <router-link to="/" class="nav-brand">🎵 舞蹈 AI 分析</router-link>
       <div class="nav-links">
         <router-link to="/" class="nav-link">首页</router-link>
         <router-link v-if="userStore.isAdmin" to="/dancers" class="nav-link">用户管理</router-link>
@@ -762,8 +762,13 @@ const handleLogout = () => {
   font-size: 24px;
   font-weight: bold;
   color: #667eea;
+  text-decoration: none;
+  cursor: pointer;
 }
 
+.nav-brand:hover {
+  opacity: 0.8;
+}
 .nav-links {
   display: flex;
   gap: 20px;

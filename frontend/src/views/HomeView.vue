@@ -1,7 +1,7 @@
 <template>
   <div class="home-container">
     <nav class="navbar">
-      <div class="nav-brand">🎵 舞蹈 AI 分析</div>
+      <router-link to="/" class="nav-brand">🎵 舞蹈 AI 分析</router-link>
       <div class="nav-links">
         <span v-if="userStore.isAdmin" class="admin-badge-nav">管理员</span>
         <router-link to="/" class="nav-link">首页</router-link>
@@ -179,6 +179,12 @@ const goToProgressTracking = () => {
   font-size: 24px;
   font-weight: bold;
   color: #667eea;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.nav-brand:hover {
+  opacity: 0.8;
 }
 
 .nav-links {
