@@ -252,7 +252,8 @@ def get_users():
             'avatar_url': u.avatar_url,
             'is_admin': u.is_admin,
             'created_at': u.created_at.isoformat(),
-            'video_count': len(u.videos)
+            'video_count': len(u.videos),
+            'dancer_id': Dancer.query.filter_by(user_id=u.id).first().id if Dancer.query.filter_by(user_id=u.id).first() else None
         } for u in users]
     })
 

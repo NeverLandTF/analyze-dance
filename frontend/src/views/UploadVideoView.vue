@@ -70,7 +70,7 @@
           <label>选择舞者（用户）</label>
           <select v-model="selectedDancerId" class="form-select" :disabled="loading || uploading">
             <option value="">请选择用户</option>
-            <option v-for="user in users" :key="user.id" :value="user.id">
+            <option v-for="user in users" :key="user.id" :value="user.dancer_id">
               {{ user.username }}
             </option>
           </select>
@@ -403,9 +403,12 @@ const loadUsers = async () => {
       // 过滤掉管理员用户，只保留普通用户作为可选舞者
       users.value = (response.users || []).filter(user => !user.is_admin)
       
-      // 如果有用户，自动选择第一个
+      // 如果有用户且有 dancer_id，自动选择第一个
       if (users.value.length > 0 && selectedDancerId.value === null) {
-        selectedDancerId.value = users.value[0].id
+        const firstUserWithDancer = users.value.find(u => u.dancer_id)
+        if (firstUserWithDancer) {
+          selectedDancerId.value = firstUserWithDancer.dancer_id
+        }
       }
     } else {
       // 普通用户直接设置自己的 ID，不需要传递 dancer_id，后端会自动获取
@@ -561,9 +564,10 @@ const handleUpload = async () => {
 
 // 重置表单
 const resetForm = () => {
-  // 管理员重置为第一个用户，普通用户重置为 null（后端会自动获取）
+  // 管理员重置为第一个有 dancer_id 的用户，普通用户重置为 null（后端会自动获取）
   if (userStore.isAdmin) {
-    selectedDancerId.value = users.value.length > 0 ? users.value[0].id : null
+    const firstUserWithDancer = users.value.find(u => u.dancer_id)
+    selectedDancerId.value = firstUserWithDancer ? firstUserWithDancer.dancer_id : null
   } else {
     selectedDancerId.value = null  // 普通用户设置为 null，让后端自动获取
   }
