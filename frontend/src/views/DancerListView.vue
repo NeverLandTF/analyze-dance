@@ -77,6 +77,13 @@
           >
             <div class="user-actions">
               <button 
+                @click.stop="handleEdit(user)" 
+                class="btn-edit"
+                title="编辑用户"
+              >
+                ✏️
+              </button>
+              <button 
                 @click.stop="handleDelete(user)" 
                 class="btn-delete"
                 title="删除用户"
@@ -159,6 +166,58 @@
         </form>
       </div>
     </div>
+
+    <!-- 编辑用户模态框 -->
+    <div v-if="showEditModal" class="modal-overlay" @click.self="showEditModal = false">
+      <div class="modal">
+        <h2>编辑用户</h2>
+        <form @submit.prevent="handleUpdate">
+          <div class="form-group">
+            <label>用户名 *</label>
+            <input 
+              type="text" 
+              v-model="editUser.username" 
+              required 
+              placeholder="输入用户名"
+            />
+          </div>
+          
+          <div class="form-group">
+            <label>邮箱 *</label>
+            <input 
+              type="email" 
+              v-model="editUser.email" 
+              required 
+              placeholder="输入邮箱地址"
+            />
+          </div>
+          
+          <div class="form-group">
+            <label>角色</label>
+            <select v-model="editUser.is_admin" class="form-select">
+              <option :value="false">普通用户</option>
+              <option :value="true">管理员</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label>描述</label>
+            <textarea 
+              v-model="editUser.description" 
+              placeholder="可选：用户的简介或风格"
+              rows="3"
+            ></textarea>
+          </div>
+          
+          <div class="modal-actions">
+            <button type="button" @click="showEditModal = false" class="btn-secondary">取消</button>
+            <button type="submit" :disabled="updating" class="btn-primary">
+              {{ updating ? '保存中...' : '保存' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -177,6 +236,8 @@ const users = ref([])
 const loading = ref(true)
 const showCreateModal = ref(false)
 const creating = ref(false)
+const showEditModal = ref(false)
+const updating = ref(false)
 
 // 用户菜单相关
 const showUserMenu = ref(false)
@@ -227,6 +288,14 @@ const newUser = reactive({
   description: ''
 })
 
+const editUser = reactive({
+  id: null,
+  username: '',
+  email: '',
+  is_admin: false,
+  description: ''
+})
+
 const handleCreate = async () => {
   creating.value = true
   
@@ -251,6 +320,36 @@ const handleCreate = async () => {
     showToast('创建失败：' + (error.response?.data?.error || '请稍后重试'), 'error')
   } finally {
     creating.value = false
+  }
+}
+
+const handleEdit = (user) => {
+  editUser.id = user.id
+  editUser.username = user.username
+  editUser.email = user.email
+  editUser.is_admin = user.is_admin
+  editUser.description = user.description || ''
+  showEditModal.value = true
+}
+
+const handleUpdate = async () => {
+  updating.value = true
+  
+  try {
+    await userAPI.updateUser(editUser.id, {
+      username: editUser.username,
+      email: editUser.email,
+      is_admin: editUser.is_admin,
+      description: editUser.description
+    })
+    
+    showEditModal.value = false
+    showToast('用户信息已更新', 'success')
+    await loadUsers()
+  } catch (error) {
+    showToast('更新失败：' + (error.response?.data?.error || '请稍后重试'), 'error')
+  } finally {
+    updating.value = false
   }
 }
 
@@ -545,6 +644,24 @@ const handleLogout = () => {
   top: 15px;
   right: 15px;
   z-index: 10;
+  display: flex;
+  gap: 8px;
+}
+
+.btn-edit {
+  background: #eef;
+  border: 1px solid #ccf;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-edit:hover {
+  background: #dde;
+  border-color: #aaf;
+  transform: scale(1.1);
 }
 
 .btn-delete {
@@ -561,6 +678,22 @@ const handleLogout = () => {
   background: #fdd;
   border-color: #faa;
   transform: scale(1.1);
+}
+
+.form-select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+  background: white;
+  cursor: pointer;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #667eea;
 }
 
 .user-card-content {

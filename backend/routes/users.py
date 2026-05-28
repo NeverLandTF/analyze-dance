@@ -347,6 +347,67 @@ def get_dancer(dancer_id):
     })
 
 
+@user_bp.route('/users/<int:user_id>', methods=['PUT'])
+@admin_required
+def update_user(user_id):
+    """更新用户信息（包括角色） - 仅管理员可访问"""
+    current_user = request.current_user
+    
+    # 防止修改自己
+    if user_id == current_user.get('user_id'):
+        return jsonify({'error': 'Cannot modify yourself'}), 400
+    
+    user = User.query.get_or_404(user_id)
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    # 更新用户名
+    if 'username' in data:
+        # 检查新用户名是否已被其他用户使用
+        existing_user = User.query.filter_by(username=data['username']).first()
+        if existing_user and existing_user.id != user_id:
+            return jsonify({'error': 'Username already exists'}), 409
+        user.username = data['username']
+        
+        # 同步更新同名舞者名称
+        default_dancer = Dancer.query.filter_by(user_id=user_id).first()
+        if default_dancer:
+            default_dancer.name = data['username']
+    
+    # 更新邮箱
+    if 'email' in data:
+        # 检查新邮箱是否已被其他用户使用
+        existing_user = User.query.filter_by(email=data['email']).first()
+        if existing_user and existing_user.id != user_id:
+            return jsonify({'error': 'Email already exists'}), 409
+        user.email = data['email']
+    
+    # 更新角色（is_admin）
+    if 'is_admin' in data:
+        user.is_admin = bool(data['is_admin'])
+    
+    # 更新描述（同步到舞者）
+    if 'description' in data:
+        default_dancer = Dancer.query.filter_by(user_id=user_id).first()
+        if default_dancer:
+            default_dancer.description = data['description']
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'User updated successfully',
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'is_admin': user.is_admin,
+            'created_at': user.created_at.isoformat()
+        }
+    })
+
+
 @user_bp.route('/users/<int:user_id>', methods=['DELETE'])
 @admin_required
 def delete_user(user_id):

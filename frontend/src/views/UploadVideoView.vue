@@ -400,7 +400,8 @@ const loadUsers = async () => {
     // 仅管理员需要加载用户列表，普通用户直接使用自己的 ID
     if (userStore.isAdmin) {
       const response = await userAPI.getUsers(userStore.userId, userStore.isAdmin)
-      users.value = response.users
+      // 过滤掉管理员用户，只保留普通用户作为可选舞者
+      users.value = (response.users || []).filter(user => !user.is_admin)
       
       // 如果有用户，自动选择第一个
       if (users.value.length > 0 && selectedDancerId.value === null) {
