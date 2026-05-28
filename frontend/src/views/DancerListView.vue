@@ -93,7 +93,7 @@
             </div>
             <div 
               class="user-card-content"
-              @click="$router.push(`/dancers/${user.id}`)"
+              @click="$router.push(`/progress/${user.id}`)"
             >
               <div class="user-avatar">
                 {{ user.username.charAt(0).toUpperCase() }}
