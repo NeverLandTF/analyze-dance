@@ -1,37 +1,25 @@
 ```
-# Dependencies
-node_modules/
-
 # Build artifacts
+*.js
+*.css
 dist/
 build/
-target/
+*.min.js
+*.min.css
+*.map
 
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-.venv/
-.ENV
-.python-version
-.pytest_cache/
-.mypy_cache/
-.coverage
-coverage/
+# Dependencies
+node_modules/
 
 # Logs
 *.log
 
-# Environment variables
+# Environment
 .env
 .env.local
-.env.*
+*.env.*
 
-# IDE
+# Editor/IDE
 .vscode/
 .idea/
 *.swp
@@ -42,7 +30,22 @@ coverage/
 .DS_Store
 Thumbs.db
 
-# Compressed files
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg-info/
+.eggs/
+
+# Compressed
 *.zip
 *.gz
 *.tar
