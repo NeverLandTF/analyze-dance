@@ -689,6 +689,7 @@ const handleLogout = () => {
   box-sizing: border-box;
   background: white;
   cursor: pointer;
+  color: #333;
 }
 
 .form-select:focus {
@@ -801,6 +802,7 @@ const handleLogout = () => {
   border-radius: 6px;
   font-size: 14px;
   box-sizing: border-box;
+  color: #333;
 }
 
 .form-group input:focus,
