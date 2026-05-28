@@ -64,7 +64,8 @@ def get_progress(user_id):
             'title': v.title,
             'upload_date': v.upload_date.isoformat() if v.upload_date else None,
             'dance_style': v.dance_style,
-            'overall_score': None
+            'overall_score': None,
+            'analysis_id': None
         }
         
         # 提取分析结果中的关键分数
@@ -76,6 +77,8 @@ def get_progress(user_id):
             video_data['rhythm_score'] = result_data.get('rhythm_score', 0)
             video_data['expression_score'] = result_data.get('expression_score', 0)
             video_data['completeness_score'] = result_data.get('completeness_score', 0)
+            # 添加分析记录 ID
+            video_data['analysis_id'] = v.analyses[0].id
         
         videos_data.append(video_data)
     
