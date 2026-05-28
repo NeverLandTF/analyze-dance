@@ -183,7 +183,14 @@ def get_videos():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     
-    query = Video.query.filter_by(user_id=int(user_id))
+    # 如果是管理员且没有指定 dancer_id，则查询所有视频（不限制 user_id）
+    # 否则按 user_id 查询
+    if current_user.get('is_admin', False) and not dancer_id:
+        # 管理员选择"全部舞者"时，查询所有视频
+        query = Video.query
+    else:
+        # 普通用户或管理员选择了特定舞者
+        query = Video.query.filter_by(user_id=int(user_id))
     
     if dancer_id:
         query = query.filter_by(dancer_id=int(dancer_id))

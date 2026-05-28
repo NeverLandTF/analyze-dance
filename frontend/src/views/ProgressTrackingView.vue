@@ -331,7 +331,18 @@ const loadProgress = async () => {
     }
     
     // 获取进步追踪数据（后端已返回精简的视频列表）
-    const response = await progressAPI.getProgress(progressUserId)
+    // 如果是管理员且没有选择特定舞者（全部舞者），不传 dancer_id 参数
+    // 如果选择了特定舞者，传递 dancer_id 参数
+    let dancerIdParam = null
+    if (userStore.isAdmin && selectedDancerId.value) {
+      // 从 dancers 数组中找到对应的 dancer_id
+      const selectedDancer = dancers.value.find(d => d.id === selectedDancerId.value)
+      if (selectedDancer) {
+        dancerIdParam = selectedDancer.dancer_id
+      }
+    }
+    
+    const response = await progressAPI.getProgress(progressUserId, { dancerId: dancerIdParam })
     progressData.value = response
     
     // 如果没有 videos 字段，尝试从 videos 数组构建
