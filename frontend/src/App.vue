@@ -1,5 +1,7 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, provide } from 'vue'
+import Toast from './components/Toast.vue'
+import ConfirmDialog from './components/ConfirmDialog.vue'
 
 // 创建全局 toast 引用
 const toastRef = ref(null)
@@ -22,7 +24,6 @@ const showConfirm = (options = {}) => {
 }
 
 // 将 showToast 和 showConfirm 挂载到全局属性，使得所有组件可以通过 inject 获取
-import { provide } from 'vue'
 provide('toast', showToast)
 provide('confirm', showConfirm)
 </script>

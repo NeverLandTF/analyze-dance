@@ -1,1 +1,43 @@
-Nothing should be ignored based on the provided file changes. The only modified file is a Vue component source file (`frontend/src/views/UploadVideoView.vue`), which is a legitimate source code file that should not be ignored.
+```
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Dependencies
+.venv/
+venv/
+env/
+pip-log.txt
+pipenv.lock
+
+# Build and distribution artifacts
+build/
+dist/
+*.egg
+*.egg-info/
+*.so
+.coverage
+htmlcov/
+
+# Environment variables
+.env
+.env.local
+.env.*
+!.env.example
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+```
