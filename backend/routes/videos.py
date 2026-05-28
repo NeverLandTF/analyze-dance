@@ -40,6 +40,10 @@ def upload_video_file():
     dancer_id = request.form.get('dancer_id')
     if dancer_id:
         dancer_id = int(dancer_id)  # 转换为整数
+        # 验证 dancer_id 是否存在于 dancers 表中
+        dancer = Dancer.query.get(dancer_id)
+        if not dancer:
+            return jsonify({'error': f'Dancer with id {dancer_id} not found'}), 400
     title = request.form.get('title')
     dance_style = request.form.get('dance_style', '')
     

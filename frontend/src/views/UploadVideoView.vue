@@ -70,7 +70,7 @@
           <label>选择舞者（用户）</label>
           <select v-model="selectedDancerId" class="form-select" :disabled="loading || uploading">
             <option value="">请选择用户</option>
-            <option v-for="user in users" :key="user.id" :value="user.id">
+            <option v-for="user in users" :key="user.id" :value="user.dancer_id">
               {{ user.username }}
             </option>
           </select>
@@ -397,15 +397,29 @@ const canUpload = computed(() => {
 const loadUsers = async () => {
   try {
     loading.value = true
+    console.log('开始加载用户列表，isAdmin:', userStore.isAdmin)
     // 仅管理员需要加载用户列表，普通用户直接使用自己的 ID
     if (userStore.isAdmin) {
       const response = await userAPI.getUsers(userStore.userId, userStore.isAdmin)
+      console.log('获取用户列表响应:', response)
       // 过滤掉管理员用户，只保留普通用户作为可选舞者
       users.value = (response.users || []).filter(user => !user.is_admin)
+      console.log('过滤后的用户列表:', users.value)
       
-      // 如果有用户，自动选择第一个
+      // 检查每个用户的 dancer_id
+      users.value.forEach(u => {
+        console.log(`用户 ${u.username} (id=${u.id}) 的 dancer_id:`, u.dancer_id)
+      })
+      
+      // 如果有用户且有 dancer_id，自动选择第一个
       if (users.value.length > 0 && selectedDancerId.value === null) {
-        selectedDancerId.value = users.value[0].id
+        const firstUserWithDancer = users.value.find(u => u.dancer_id)
+        if (firstUserWithDancer) {
+          selectedDancerId.value = firstUserWithDancer.dancer_id
+          console.log('自动选择第一个有 dancer_id 的用户:', firstUserWithDancer.username, 'dancer_id:', selectedDancerId.value)
+        } else {
+          console.warn('所有用户都没有 dancer_id')
+        }
       }
     } else {
       // 普通用户直接设置自己的 ID，不需要传递 dancer_id，后端会自动获取
@@ -414,7 +428,7 @@ const loadUsers = async () => {
     }
   } catch (error) {
     console.error('加载用户列表失败:', error)
-    uploadError.value = '加载用户列表失败'
+    uploadError.value = '加载用户列表失败：' + (error.message || '未知错误')
   } finally {
     loading.value = false
   }
@@ -561,9 +575,10 @@ const handleUpload = async () => {
 
 // 重置表单
 const resetForm = () => {
-  // 管理员重置为第一个用户，普通用户重置为 null（后端会自动获取）
+  // 管理员重置为第一个有 dancer_id 的用户，普通用户重置为 null（后端会自动获取）
   if (userStore.isAdmin) {
-    selectedDancerId.value = users.value.length > 0 ? users.value[0].id : null
+    const firstUserWithDancer = users.value.find(u => u.dancer_id)
+    selectedDancerId.value = firstUserWithDancer ? firstUserWithDancer.dancer_id : null
   } else {
     selectedDancerId.value = null  // 普通用户设置为 null，让后端自动获取
   }
