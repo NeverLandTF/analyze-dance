@@ -5,22 +5,24 @@ node_modules/
 # Build artifacts
 dist/
 build/
-*.min.js
-*.min.css
-*.bundle.js
+*.js
+*.css
+*.map
 
-# Logs and temp files
-*.log
-*.tmp
-
-# Environment
+# Environment variables
 .env
 .env.local
 .env.*
 
-# Editors
+# Editor/IDE files
 .vscode/
 .idea/
+*.swp
+*.swo
+*.tmp
+
+# Logs
+*.log
 
 # Python
 __pycache__/
@@ -28,21 +30,23 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
-env/
-venv/
-.venv/
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
+*.so
+
+# Coverage
+coverage/
+htmlcov/
 .coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.git*
-!/.gitignore
+
+# OS generated files
 .DS_Store
 Thumbs.db
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+.hypothesis/
+
+# Virtual environments
+venv/
+.venv/
 ```

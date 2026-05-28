@@ -1,7 +1,7 @@
 <template>
   <div class="progress-tracking-container">
     <nav class="navbar">
-      <div class="nav-brand">🎵 舞蹈 AI 分析</div>
+      <router-link to="/" class="nav-brand">🎵 舞蹈 AI 分析</router-link>
       <div class="nav-links">
         <router-link to="/" class="nav-link">首页</router-link>
         <router-link v-if="userStore.isAdmin" to="/dancers" class="nav-link">用户管理</router-link>
@@ -319,17 +319,18 @@ const loadProgress = async () => {
       return
     }
     
-    // 获取用户名称
+    // 如果是管理员且选择了舞者，使用选择的舞者 ID，否则使用当前登录用户 ID
+    const progressUserId = userStore.isAdmin && selectedDancerId.value ? selectedDancerId.value : userId
+    
+    // 获取用户名称（使用实际查询的舞者 ID）
     try {
-      const userRes = await userAPI.getUser(userId)
+      const userRes = await userAPI.getUser(progressUserId)
       dancerName.value = userRes.username || '舞者'
     } catch (e) {
       console.error('获取用户信息失败:', e)
     }
     
     // 获取进步追踪数据（后端已返回精简的视频列表）
-    // 如果是管理员且选择了舞者，使用选择的舞者 ID，否则使用当前登录用户 ID
-    const progressUserId = userStore.isAdmin && selectedDancerId.value ? selectedDancerId.value : userId
     const response = await progressAPI.getProgress(progressUserId)
     progressData.value = response
     
@@ -435,8 +436,13 @@ const handleLogout = () => {
   font-size: 24px;
   font-weight: bold;
   color: #667eea;
+  text-decoration: none;
+  cursor: pointer;
 }
 
+.nav-brand:hover {
+  opacity: 0.8;
+}
 .nav-links {
   display: flex;
   gap: 20px;
