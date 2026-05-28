@@ -291,9 +291,24 @@ const loadAnalyses = async (isLoadMore = false) => {
       }
     }
     
-    // 如果是管理员且选择了舞者，传递 dancer_id 参数
-    const dancerId = userStore.isAdmin && selectedDancerId.value ? selectedDancerId.value : null
-    const result = await analysisAPI.getAnalysisHistory(userStore.userId, dancerId, params)
+    // 如果是管理员且选择了舞者，传递 dancer_id 参数，并使用该舞者的 user_id
+    let userId = userStore.userId
+    let dancerId = null
+    
+    if (userStore.isAdmin && selectedDancerId.value) {
+      dancerId = selectedDancerId.value
+      // 获取选择舞者对应的 user_id
+      try {
+        const dancerUserResponse = await userAPI.getDancerUser(dancerId)
+        userId = dancerUserResponse.id
+      } catch (error) {
+        console.error('获取舞者用户信息失败:', error)
+        // 如果获取失败，使用当前登录用户的 ID
+        userId = userStore.userId
+      }
+    }
+    
+    const result = await analysisAPI.getAnalysisHistory(userId, dancerId, params)
     const newAnalyses = result.analyses || []
     
     if (isLoadMore) {

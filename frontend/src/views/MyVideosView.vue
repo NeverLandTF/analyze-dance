@@ -392,52 +392,6 @@ const getDateRangeFromFilter = () => {
   }
 }
 
-// 加载视频列表 - 仅获取基本信息（封面、标题等），不加载视频内容
-const loadVideos = async (isLoadMore = false) => {
-  try {
-    if (isLoadMore) {
-      isLoadingMore.value = true
-    } else {
-      loading.value = true
-      currentPage.value = 1
-      videos.value = []
-      // 清空 latestAnalysisIds，避免旧数据干扰
-      for (const key in latestAnalysisIds) {
-        delete latestAnalysisIds[key]
-      }
-    }
-    
-    const dateRange = getDateRangeFromFilter()
-    // 如果是管理员且选择了舞者，传递 dancer_id 参数
-    const dancerId = userStore.isAdmin && selectedDancerId.value ? selectedDancerId.value : null
-    const response = await videoAPI.getVideos(userStore.userId, dancerId, {
-      page: currentPage.value,
-      perPage: perPage,
-      ...dateRange
-    })
-    
-    const newVideos = response.videos || []
-    
-    if (isLoadMore) {
-      videos.value = [...videos.value, ...newVideos]
-    } else {
-      videos.value = newVideos
-    }
-    
-    // 判断是否还有更多数据
-    hasMore.value = response.pagination?.has_next || false
-    
-  } catch (error) {
-    console.error('加载视频列表失败:', error)
-    if (!isLoadMore) {
-      videos.value = []
-    }
-  } finally {
-    loading.value = false
-    isLoadingMore.value = false
-  }
-}
-
 // 加载更多视频（滚动加载）
 const loadMoreVideos = async () => {
   if (isLoadingMore.value || !hasMore.value) return
@@ -509,7 +463,7 @@ const handleTimeFilterChange = (value) => {
 }
 
 // 舞者选择变化处理
-const handleDancerChange = () => {
+const handleDancerChange = async () => {
   loadVideos()
 }
 
@@ -533,6 +487,67 @@ const loadDancers = async () => {
 const filteredVideos = computed(() => {
   return videos.value
 })
+
+// 加载视频列表 - 仅获取基本信息（封面、标题等），不加载视频内容
+const loadVideos = async (isLoadMore = false) => {
+  try {
+    if (isLoadMore) {
+      isLoadingMore.value = true
+    } else {
+      loading.value = true
+      currentPage.value = 1
+      videos.value = []
+      // 清空 latestAnalysisIds，避免旧数据干扰
+      for (const key in latestAnalysisIds) {
+        delete latestAnalysisIds[key]
+      }
+    }
+    
+    const dateRange = getDateRangeFromFilter()
+    // 如果是管理员且选择了舞者，传递 dancer_id 参数，并使用该舞者的 user_id
+    let userId = userStore.userId
+    let dancerId = null
+    
+    if (userStore.isAdmin && selectedDancerId.value) {
+      dancerId = selectedDancerId.value
+      // 获取选择舞者对应的 user_id
+      try {
+        const dancerUserResponse = await userAPI.getDancerUser(dancerId)
+        userId = dancerUserResponse.id
+      } catch (error) {
+        console.error('获取舞者用户信息失败:', error)
+        // 如果获取失败，使用当前登录用户的 ID
+        userId = userStore.userId
+      }
+    }
+    
+    const response = await videoAPI.getVideos(userId, dancerId, {
+      page: currentPage.value,
+      perPage: perPage,
+      ...dateRange
+    })
+    
+    const newVideos = response.videos || []
+    
+    if (isLoadMore) {
+      videos.value = [...videos.value, ...newVideos]
+    } else {
+      videos.value = newVideos
+    }
+    
+    // 判断是否还有更多数据
+    hasMore.value = response.pagination?.has_next || false
+    
+  } catch (error) {
+    console.error('加载视频列表失败:', error)
+    if (!isLoadMore) {
+      videos.value = []
+    }
+  } finally {
+    loading.value = false
+    isLoadingMore.value = false
+  }
+}
 
 // 获取封面图 URL
 const getThumbnailUrl = (thumbnailPath) => {
