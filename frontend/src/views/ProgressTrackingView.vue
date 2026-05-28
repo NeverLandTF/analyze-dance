@@ -226,7 +226,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { progressAPI, videoAPI, analysisAPI, userAPI } from '../api/modules'
+import { progressAPI, userAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
@@ -283,7 +283,14 @@ const loadProgress = async () => {
     loading.value = true
     error.value = ''
     
-    const userId = route.params.dancerId
+    // 如果没有传入 dancerId，则使用当前登录用户的 ID
+    const userId = route.params.dancerId || userStore.userId
+    
+    if (!userId) {
+      error.value = '未找到用户信息，请重新登录'
+      loading.value = false
+      return
+    }
     
     // 获取用户名称
     try {
@@ -294,59 +301,20 @@ const loadProgress = async () => {
     }
     
     // 获取进步追踪数据（后端已返回包含 analyses 的视频列表）
-    try {
-      const response = await progressAPI.getProgress(userId)
-      progressData.value = response
-      
-      // 如果没有 videos 字段，尝试从 videos 数组构建
-      if (!progressData.value.videos && response.videos) {
-        progressData.value.videos = response.videos
-      }
-      
-      // 为每个有分析的视频加载 analyses 数据（使用新接口）
-      if (progressData.value.videos) {
-        for (const video of progressData.value.videos) {
-          if (video.analyses && video.analyses.length > 0) {
-            // 已经有 analyses 数据，直接使用
-            videoAnalysesMap.value[video.id] = video.analyses
-          }
+    const response = await progressAPI.getProgress(userId)
+    progressData.value = response
+    
+    // 如果没有 videos 字段，尝试从 videos 数组构建
+    if (!progressData.value.videos && response.videos) {
+      progressData.value.videos = response.videos
+    }
+    
+    // 使用后端返回的 analyses 数据
+    if (progressData.value.videos) {
+      for (const video of progressData.value.videos) {
+        if (video.analyses && video.analyses.length > 0) {
+          videoAnalysesMap.value[video.id] = video.analyses
         }
-      }
-    } catch (e) {
-      console.error('获取进步数据失败:', e)
-      // 尝试直接获取视频列表
-      const videosRes = await videoAPI.getVideos(userStore.userId, userId)
-      if (videosRes.videos && videosRes.videos.length > 0) {
-        progressData.value = {
-          videos: videosRes.videos,
-          analyzedCount: 0,
-          latestScore: 0,
-          improvement: 0
-        }
-        
-        // 为每个视频单独获取 analyses 数据
-        for (const video of videosRes.videos) {
-          try {
-            const analysesRes = await analysisAPI.getAnalysisResults(video.id)
-            videoAnalysesMap.value[video.id] = analysesRes
-            if (analysesRes && analysesRes.length > 0) {
-              progressData.value.analyzedCount++
-              progressData.value.latestScore = analysesRes[0]?.result_data?.overall_score || 0
-            }
-          } catch (err) {
-            console.warn(`获取视频 ${video.id} 的分析结果失败:`, err)
-          }
-        }
-        
-        // 计算进步幅度
-        const analyzedVideos = progressData.value.videos.filter(v => videoAnalysesMap.value[v.id]?.length > 0)
-        if (analyzedVideos.length >= 2) {
-          const firstScore = videoAnalysesMap.value[analyzedVideos[0].id]?.[0]?.result_data?.overall_score || 0
-          const lastScore = videoAnalysesMap.value[analyzedVideos[analyzedVideos.length - 1].id]?.[0]?.result_data?.overall_score || 0
-          progressData.value.improvement = Math.round((lastScore - firstScore) * 10) / 10
-        }
-      } else {
-        progressData.value = { videos: [] }
       }
     }
   } catch (err) {
