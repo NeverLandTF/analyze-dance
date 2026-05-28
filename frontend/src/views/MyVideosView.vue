@@ -517,11 +517,11 @@ const handleDancerChange = () => {
 const loadDancers = async () => {
   try {
     const response = await userAPI.getUsers(userStore.userId, true)
-    // 过滤掉管理员和没有 dancer_id 的用户，只显示有舞者记录的普通用户
+    // 过滤掉管理员，只显示普通用户（使用用户的 id 作为 dancer_id）
     dancers.value = (response.users || [])
-      .filter(u => !u.is_admin && u.dancer_id !== null && u.dancer_id !== undefined)
+      .filter(u => !u.is_admin)
       .map(u => ({
-        id: u.dancer_id,
+        id: u.id,
         username: u.username
       }))
   } catch (error) {
@@ -645,7 +645,9 @@ const analyzeVideo = async (video) => {
   analyzingVideos[video.id] = true
   
   try {
-    const result = await analysisAPI.analyzeVideo(video.id, userStore.userId)
+    // 如果是管理员且选择了舞者，传递选择的舞者 userid
+    const userId = userStore.isAdmin && selectedDancerId.value ? selectedDancerId.value : userStore.userId
+    const result = await analysisAPI.analyzeVideo(video.id, userId)
     // 分析成功，移除分析中状态
     delete analyzingVideos[video.id]
     // 接口返回了 analysis_id，保存到这个 video 对应的最新 analysis_id
