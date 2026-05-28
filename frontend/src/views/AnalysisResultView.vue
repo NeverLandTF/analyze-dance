@@ -80,10 +80,7 @@
           <div class="info-grid">
             <div class="info-item">
               <span class="label">视频标题：</span>
-              <button class="video-title-btn" @click="showVideoPreview = true">
-                <span class="video-title-text">{{ videoInfo?.title || '未知' }}</span>
-                <span class="play-icon">▶</span>
-              </button>
+              <span class="video-title-text" @click="showVideoPreview = true" style="cursor: pointer;">{{ videoInfo?.title || '未知' }}</span>
             </div>
             <div class="info-item">
               <span class="label">舞蹈风格：</span>
@@ -716,49 +713,17 @@ const getVideoUrl = (filePath) => {
   font-weight: 500;
 }
 
-.video-title-btn {
-  cursor: pointer;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 10px 16px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.3s ease;
-  font-size: 15px;
-  font-weight: 500;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-}
-
-.video-title-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.video-title-btn:active {
-  transform: translateY(0);
-}
-
 .video-title-text {
   max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: #333;
+  font-weight: 500;
 }
 
-.play-icon {
-  font-size: 10px;
-  background: rgba(255, 255, 255, 0.3);
-  color: white;
-  border-radius: 50%;
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+.video-title-text:hover {
+  color: #667eea;
 }
 
 .score-overview {

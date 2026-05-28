@@ -261,21 +261,16 @@ const loading = ref(true)
 const error = ref('')
 const progressData = ref(null)
 const dancerName = ref('舞者')
-const videoAnalysesMap = ref({}) // 存储每个视频的分析结果
 
 const latestAnalysis = computed(() => {
   if (!progressData.value || !progressData.value.videos || progressData.value.videos.length === 0) {
     return null
   }
   // 找到最后一个有分析的视频
-  const analyzedVideos = progressData.value.videos.filter(v => {
-    const analyses = videoAnalysesMap.value[v.id] || v.analyses
-    return analyses && analyses.length > 0
-  })
+  const analyzedVideos = progressData.value.videos.filter(v => v.overall_score !== null && v.overall_score !== undefined)
   if (analyzedVideos.length === 0) return null
   const latest = analyzedVideos[analyzedVideos.length - 1]
-  const analyses = videoAnalysesMap.value[latest.id] || latest.analyses
-  return analyses[0]
+  return latest
 })
 
 const loadProgress = async () => {
@@ -300,22 +295,13 @@ const loadProgress = async () => {
       console.error('获取用户信息失败:', e)
     }
     
-    // 获取进步追踪数据（后端已返回包含 analyses 的视频列表）
+    // 获取进步追踪数据（后端已返回精简的视频列表）
     const response = await progressAPI.getProgress(userId)
     progressData.value = response
     
     // 如果没有 videos 字段，尝试从 videos 数组构建
     if (!progressData.value.videos && response.videos) {
       progressData.value.videos = response.videos
-    }
-    
-    // 使用后端返回的 analyses 数据
-    if (progressData.value.videos) {
-      for (const video of progressData.value.videos) {
-        if (video.analyses && video.analyses.length > 0) {
-          videoAnalysesMap.value[video.id] = video.analyses
-        }
-      }
     }
   } catch (err) {
     console.error('加载进步追踪数据失败:', err)
@@ -362,8 +348,7 @@ const getDanceStyleName = (style) => {
 }
 
 const viewVideoAnalysis = (video) => {
-  const analyses = videoAnalysesMap.value[video.id] || video.analyses
-  if (analyses && analyses.length > 0) {
+  if (video.overall_score !== null && video.overall_score !== undefined) {
     router.push(`/analysis/${video.id}`)
   } else {
     showToast('该视频尚未进行 AI 分析', 'warning')
