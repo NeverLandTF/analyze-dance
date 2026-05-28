@@ -55,6 +55,11 @@ export const userAPI = {
     return api.get(`/users/${userId}`)
   },
 
+  // 更新用户信息（包括角色）（仅管理员）
+  updateUser(userId, userData) {
+    return api.put(`/users/${userId}`, userData)
+  },
+
   // 删除用户（仅管理员）
   deleteUser(userId) {
     return api.delete(`/users/${userId}`)

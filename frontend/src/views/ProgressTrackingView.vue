@@ -354,7 +354,8 @@ const handleDancerChange = () => {
 const loadDancers = async () => {
   try {
     const response = await userAPI.getUsers(userStore.userId, true)
-    dancers.value = response.users || []
+    // 过滤掉管理员，只显示普通用户
+    dancers.value = (response.users || []).filter(u => !u.is_admin)
   } catch (error) {
     console.error('加载舞者列表失败:', error)
   }
