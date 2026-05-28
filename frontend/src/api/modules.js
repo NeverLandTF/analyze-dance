@@ -167,9 +167,12 @@ export const analysisAPI = {
     return api.get(`/analysis/${analysisId}`)
   },
 
-  // 获取分析历史列表（支持时间过滤和分页）
-  getAnalysisHistory(userId, params = {}) {
+  // 获取分析历史列表（支持时间过滤、舞者过滤和分页）
+  getAnalysisHistory(userId, dancerId = null, params = {}) {
     let url = `/analysis/history?user_id=${userId}`
+    if (dancerId) {
+      url += `&dancer_id=${dancerId}`
+    }
     // 添加时间过滤参数
     if (params.startDate) {
       url += `&start_date=${params.startDate}`
