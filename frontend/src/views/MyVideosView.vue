@@ -933,6 +933,7 @@ const handleLogout = () => {
   cursor: pointer;
   min-width: 200px;
   transition: all 0.2s;
+  color: #333;
 }
 
 .dancer-select:hover {
