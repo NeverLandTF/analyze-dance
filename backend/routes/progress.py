@@ -79,10 +79,10 @@ def get_progress(user_id):
         
         videos_data.append(video_data)
     
-    # 计算已分析视频数量和最新分数
+    # 计算已分析视频数量和最新分数（因为 videos_data 已按上传时间降序排列，第一个就是最近的）
     analyzed_videos = [v for v in videos_data if v['overall_score'] is not None]
     analyzed_count = len(analyzed_videos)
-    latest_score = analyzed_videos[-1]['overall_score'] if analyzed_videos else 0
+    latest_score = analyzed_videos[0]['overall_score'] if analyzed_videos else 0
     
     # 计算进步幅度（计算最新两次的分数差）
     improvement = 0

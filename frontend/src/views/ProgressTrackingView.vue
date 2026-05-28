@@ -278,10 +278,10 @@ const latestAnalysis = computed(() => {
   if (!progressData.value || !progressData.value.videos || progressData.value.videos.length === 0) {
     return null
   }
-  // 找到最后一个有分析的视频
+  // 找到第一个有分析的视频（因为视频列表已按上传时间降序排列，第一个就是最近的）
   const analyzedVideos = progressData.value.videos.filter(v => v.overall_score !== null && v.overall_score !== undefined)
   if (analyzedVideos.length === 0) return null
-  const latest = analyzedVideos[analyzedVideos.length - 1]
+  const latest = analyzedVideos[0]
   return latest
 })
 
