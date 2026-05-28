@@ -46,6 +46,9 @@ def get_progress(user_id):
     """获取用户的进步追踪数据 - 仅返回前端必要字段"""
     current_user = request.current_user
     
+    # 从 query 参数获取 dancer_id（可选）
+    dancer_id = request.args.get('dancer_id')
+    
     # 查找用户并验证权限
     user = User.query.get_or_404(user_id)
     
@@ -53,8 +56,17 @@ def get_progress(user_id):
     if not current_user.get('is_admin', False) and user.id != current_user.get('user_id'):
         return jsonify({'error': 'Permission denied. You can only view your own progress.'}), 403
     
-    # 获取该用户的所有视频及其分析结果
-    videos = Video.query.filter_by(user_id=user_id).order_by(Video.upload_date.desc()).all()
+    # 如果是管理员且指定了 dancer_id，则查询该舞者的视频
+    # 否则查询该 user_id 的视频
+    if current_user.get('is_admin', False) and dancer_id:
+        # 管理员选择了特定舞者，使用 dancer_id 过滤
+        videos = Video.query.filter_by(dancer_id=int(dancer_id)).order_by(Video.upload_date.desc()).all()
+    elif current_user.get('is_admin', False) and not dancer_id:
+        # 管理员选择"全部舞者"，查询所有视频
+        videos = Video.query.order_by(Video.upload_date.desc()).all()
+    else:
+        # 普通用户查询自己的视频
+        videos = Video.query.filter_by(user_id=user_id).order_by(Video.upload_date.desc()).all()
     
     # 构建精简的视频列表，只包含前端必要字段
     videos_data = []

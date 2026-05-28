@@ -155,6 +155,7 @@ def get_analysis_history():
     
     # 从 query 参数或 token 中获取 user_id
     user_id = request.args.get('user_id') or current_user.get('user_id')
+    dancer_id = request.args.get('dancer_id')
     
     if not user_id:
         return jsonify({'error': 'user_id is required'}), 400
@@ -167,10 +168,19 @@ def get_analysis_history():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     
-    # 查询分析记录，关联视频信息
-    query = db.session.query(Analysis, Video).join(Video).filter(
-        Video.user_id == int(user_id)
-    )
+    # 如果是管理员且没有指定 dancer_id，则查询所有分析记录（不限制 user_id）
+    # 否则按 user_id 查询
+    if current_user.get('is_admin', False) and not dancer_id:
+        # 管理员选择"全部舞者"时，查询所有分析记录
+        query = db.session.query(Analysis, Video).join(Video)
+    else:
+        # 普通用户或管理员选择了特定舞者
+        query = db.session.query(Analysis, Video).join(Video).filter(
+            Video.user_id == int(user_id)
+        )
+    
+    if dancer_id:
+        query = query.filter(Video.dancer_id == int(dancer_id))
     
     # 应用时间过滤
     if start_date:

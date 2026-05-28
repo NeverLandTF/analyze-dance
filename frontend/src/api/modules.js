@@ -203,7 +203,12 @@ export const analysisAPI = {
 
 export const progressAPI = {
   // 获取进步追踪数据
-  getProgress(dancerId) {
-    return api.get(`/progress/${dancerId}`)
+  getProgress(dancerId, params = {}) {
+    let url = `/progress/${dancerId}`
+    // 添加 dancer_id 参数（用于管理员选择特定舞者）
+    if (params.dancerId) {
+      url += `?dancer_id=${params.dancerId}`
+    }
+    return api.get(url)
   }
 }
