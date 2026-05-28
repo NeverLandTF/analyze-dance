@@ -4,7 +4,7 @@
 """
 from flask import Blueprint, request, jsonify
 
-from models import db, Dancer, ProgressRecord, Video
+from models import db, Dancer, ProgressRecord, Video, User
 from utils.auth import token_required
 
 progress_bp = Blueprint('progress', __name__, url_prefix='/api')

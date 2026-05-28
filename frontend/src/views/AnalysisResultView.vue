@@ -110,7 +110,7 @@
             <div class="modal-body">
               <video 
                 v-if="videoInfo?.video_url" 
-                :src="videoInfo.video_url" 
+                :src="getVideoUrl(videoInfo.video_url)" 
                 controls 
                 autoplay
                 class="video-player-full"
@@ -374,6 +374,13 @@ const goBackToHistory = () => {
 const handleLogout = () => {
   userStore.logout()
   router.push('/login')
+}
+
+// 获取视频 URL（添加 /api 前缀）
+const getVideoUrl = (filePath) => {
+  if (!filePath) return ''
+  const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
+  return `${baseURL}${filePath}`
 }
 </script>
 
