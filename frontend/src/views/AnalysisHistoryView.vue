@@ -296,9 +296,13 @@ const loadAnalyses = async (isLoadMore = false) => {
     let dancerId = null
     
     if (userStore.isAdmin && selectedDancerId.value) {
-      dancerId = selectedDancerId.value
       // selectedDancerId 实际存储的是 user_id（因为舞者列表来自用户列表）
-      userId = dancerId
+      userId = selectedDancerId.value
+      // 从 dancers 数组中找到对应的 dancer_id
+      const selectedDancer = dancers.value.find(d => d.id === selectedDancerId.value)
+      if (selectedDancer) {
+        dancerId = selectedDancer.dancer_id
+      }
     }
     
     const result = await analysisAPI.getAnalysisHistory(userId, dancerId, params)
@@ -387,7 +391,14 @@ const loadDancers = async () => {
   try {
     const response = await userAPI.getUsers(userStore.userId, true)
     // 过滤掉管理员，只显示普通用户
-    dancers.value = (response.users || []).filter(u => !u.is_admin)
+    // dancers 数组保存完整的用户信息，包含 id (user_id) 和 dancer_id
+    dancers.value = (response.users || [])
+      .filter(u => !u.is_admin)
+      .map(u => ({
+        id: u.id,           // user_id
+        dancer_id: u.dancer_id,
+        username: u.username
+      }))
   } catch (error) {
     console.error('加载舞者列表失败:', error)
   }
