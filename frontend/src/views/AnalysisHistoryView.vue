@@ -297,15 +297,8 @@ const loadAnalyses = async (isLoadMore = false) => {
     
     if (userStore.isAdmin && selectedDancerId.value) {
       dancerId = selectedDancerId.value
-      // 获取选择舞者对应的 user_id
-      try {
-        const dancerUserResponse = await userAPI.getDancerUser(dancerId)
-        userId = dancerUserResponse.id
-      } catch (error) {
-        console.error('获取舞者用户信息失败:', error)
-        // 如果获取失败，使用当前登录用户的 ID
-        userId = userStore.userId
-      }
+      // selectedDancerId 实际存储的是 user_id（因为舞者列表来自用户列表）
+      userId = dancerId
     }
     
     const result = await analysisAPI.getAnalysisHistory(userId, dancerId, params)
