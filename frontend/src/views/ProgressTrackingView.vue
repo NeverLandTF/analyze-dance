@@ -68,7 +68,7 @@
       
       <div v-else class="progress-content">
         <div class="header">
-          <button @click="$router.push('/dancers')" class="btn-back">← 返回</button>
+          <button @click="$router.push('/')" class="btn-back">← 返回</button>
           <h1>📈 进步追踪</h1>
           <div class="dancer-name-badge">{{ dancerName }}</div>
         </div>
@@ -211,8 +211,8 @@
         </div>
         
         <div class="action-buttons">
-          <button @click="$router.push('/dancers')" class="btn-secondary">
-            返回舞者列表
+          <button @click="$router.push('/')" class="btn-secondary">
+            返回首页
           </button>
           <button @click="$router.push('/upload')" class="btn-primary">
             📹 上传新视频
