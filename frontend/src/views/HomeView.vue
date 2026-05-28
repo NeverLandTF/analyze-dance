@@ -92,7 +92,7 @@
           <p>查看 AI 分析历史记录，点击某次分析进入详情</p>
         </div>
         
-        <div class="feature-card" @click="$router.push('/progress-tracking')">
+        <div class="feature-card" @click="goToProgressTracking">
           <div class="feature-icon">📊</div>
           <h3>进步追踪</h3>
           <p>可视化展示舞者的成长曲线和趋势</p>
@@ -149,6 +149,15 @@ const handleClickOutside = (event) => {
 const handleLogout = () => {
   userStore.logout()
   router.push('/login')
+}
+
+// 跳转到进步追踪页面（需要用户 ID）
+const goToProgressTracking = () => {
+  if (userStore.userId) {
+    router.push(`/progress/${userStore.userId}`)
+  } else {
+    router.push('/login')
+  }
 }
 </script>
 

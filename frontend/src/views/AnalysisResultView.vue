@@ -80,7 +80,10 @@
           <div class="info-grid">
             <div class="info-item">
               <span class="label">视频标题：</span>
-              <span class="value">{{ videoInfo?.title || '未知' }}</span>
+              <span class="value video-title-link" @click="showVideoPreview = true">
+                {{ videoInfo?.title || '未知' }}
+                <span class="play-icon">▶</span>
+              </span>
             </div>
             <div class="info-item">
               <span class="label">舞蹈风格：</span>
@@ -94,6 +97,24 @@
               <span class="label">分析时间：</span>
               <span class="value">{{ formatDateTime(analysis.analyzed_at) }}</span>
             </div>
+          </div>
+        </div>
+        
+        <!-- 视频预览弹窗 -->
+        <div v-if="showVideoPreview" class="video-preview-modal" @click="showVideoPreview = false">
+          <div class="video-preview-content" @click.stop>
+            <button class="close-btn" @click="showVideoPreview = false">×</button>
+            <h3>视频预览</h3>
+            <video 
+              v-if="videoInfo?.video_url" 
+              :src="videoInfo.video_url" 
+              controls 
+              autoplay
+              class="preview-video"
+            >
+              您的浏览器不支持视频播放
+            </video>
+            <div v-else class="no-video">暂无视频资源</div>
           </div>
         </div>
         
@@ -243,6 +264,7 @@ const loading = ref(true)
 const error = ref('')
 const analysis = ref(null)
 const videoInfo = ref(null)
+const showVideoPreview = ref(false)
 
 const loadAnalysis = async () => {
   try {
