@@ -43,7 +43,7 @@ def get_progress_summary(dancer_id):
 @progress_bp.route('/progress/<int:user_id>', methods=['GET'])
 @token_required
 def get_progress(user_id):
-    """获取用户的进步追踪数据 - 包含视频及分析信息"""
+    """获取用户的进步追踪数据 - 仅返回前端必要字段"""
     current_user = request.current_user
     
     # 查找用户并验证权限
@@ -53,36 +53,34 @@ def get_progress(user_id):
     if not current_user.get('is_admin', False) and user.id != current_user.get('user_id'):
         return jsonify({'error': 'Permission denied. You can only view your own progress.'}), 403
     
-    summary = get_progress_summary(user_id)
-    
-    records = ProgressRecord.query.join(Dancer).filter(Dancer.user_id == user_id).order_by(ProgressRecord.recorded_at.desc()).all()
-    
     # 获取该用户的所有视频及其分析结果
     videos = Video.query.filter_by(user_id=user_id).order_by(Video.upload_date.desc()).all()
     
-    # 构建包含 analyses 字段的视频列表
-    videos_data = [{
-        'id': v.id,
-        'title': v.title,
-        'file_path': v.file_path,
-        'thumbnail_url': v.thumbnail_url,
-        'duration': v.duration,
-        'upload_date': v.upload_date.isoformat() if v.upload_date else None,
-        'dance_style': v.dance_style,
-        'dancer_id': v.dancer_id,
-        'analyses': [{
-            'id': a.id,
-            'analysis_type': a.analysis_type,
-            'result_data': a.result_data,
-            'confidence_score': a.confidence_score,
-            'processed_at': a.processed_at.isoformat() if a.processed_at else None
-        } for a in v.analyses],
-        # 方便前端使用的快捷字段
-        'overall_score': v.analyses[0].result_data.get('overall_score', 0) if v.analyses and v.analyses[0].result_data else None
-    } for v in videos]
+    # 构建精简的视频列表，只包含前端必要字段
+    videos_data = []
+    for v in videos:
+        video_data = {
+            'id': v.id,
+            'title': v.title,
+            'upload_date': v.upload_date.isoformat() if v.upload_date else None,
+            'dance_style': v.dance_style,
+            'overall_score': None
+        }
+        
+        # 提取分析结果中的关键分数
+        if v.analyses and len(v.analyses) > 0 and v.analyses[0].result_data:
+            result_data = v.analyses[0].result_data
+            video_data['overall_score'] = result_data.get('overall_score', 0)
+            # 提取各项能力分数供雷达图使用
+            video_data['technique_score'] = result_data.get('technique_score', 0)
+            video_data['rhythm_score'] = result_data.get('rhythm_score', 0)
+            video_data['expression_score'] = result_data.get('expression_score', 0)
+            video_data['completeness_score'] = result_data.get('completeness_score', 0)
+        
+        videos_data.append(video_data)
     
     # 计算已分析视频数量和最新分数
-    analyzed_videos = [v for v in videos_data if v['analyses'] and len(v['analyses']) > 0]
+    analyzed_videos = [v for v in videos_data if v['overall_score'] is not None]
     analyzed_count = len(analyzed_videos)
     latest_score = analyzed_videos[-1]['overall_score'] if analyzed_videos else 0
     
@@ -94,16 +92,6 @@ def get_progress(user_id):
         improvement = round(last_score - first_score, 1)
 
     return jsonify({
-        'user_id': user_id,
-        'summary': summary,
-        'records': [{
-            'id': r.id,
-            'skill_category': r.skill_category,
-            'score': r.score,
-            'improvement_rate': r.improvement_rate,
-            'feedback': r.feedback,
-            'recorded_at': r.recorded_at.isoformat()
-        } for r in records],
         'videos': videos_data,
         'analyzedCount': analyzed_count,
         'latestScore': latest_score,
