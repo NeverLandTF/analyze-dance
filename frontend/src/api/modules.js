@@ -63,6 +63,11 @@ export const userAPI = {
   // 删除用户（仅管理员）
   deleteUser(userId) {
     return api.delete(`/users/${userId}`)
+  },
+  
+  // 根据舞者 ID 获取对应的用户信息
+  getDancerUser(dancerId) {
+    return api.get(`/dancers/${dancerId}/user`)
   }
 }
 

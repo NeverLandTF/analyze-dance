@@ -348,6 +348,30 @@ def get_dancer(dancer_id):
     })
 
 
+@user_bp.route('/dancers/<int:dancer_id>/user', methods=['GET'])
+@token_required
+def get_dancer_user(dancer_id):
+    """根据舞者 ID 获取对应的用户信息"""
+    current_user = request.current_user
+    
+    dancer = Dancer.query.get_or_404(dancer_id)
+    
+    # 权限验证：普通用户只能查看自己的舞者信息，管理员可以查看任何舞者信息
+    if not current_user.get('is_admin', False) and dancer.user_id != current_user.get('user_id'):
+        return jsonify({'error': 'Permission denied. You can only view your own dancer information.'}), 403
+    
+    user = User.query.get_or_404(dancer.user_id)
+    
+    return jsonify({
+        'id': user.id,
+        'username': user.username,
+        'email': user.email,
+        'avatar_url': user.avatar_url,
+        'is_admin': user.is_admin,
+        'dancer_id': dancer.id
+    })
+
+
 @user_bp.route('/users/<int:user_id>', methods=['PUT'])
 @admin_required
 def update_user(user_id):
