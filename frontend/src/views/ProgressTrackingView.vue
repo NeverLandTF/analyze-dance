@@ -60,6 +60,19 @@
     </nav>
     
     <main class="main-content">
+      <!-- 舞者选择器 (仅管理员) -->
+      <div v-if="userStore.isAdmin" class="dancer-filter-section">
+        <div class="filter-group">
+          <label class="filter-label">👤 选择舞者：</label>
+          <select v-model="selectedDancerId" @change="handleDancerChange" class="dancer-select">
+            <option value="">全部舞者</option>
+            <option v-for="dancer in dancers" :key="dancer.id" :value="dancer.id">
+              {{ dancer.username }}
+            </option>
+          </select>
+        </div>
+      </div>
+      
       <div v-if="loading" class="loading">
         <div class="spinner"></div>
         <p>正在加载进步追踪数据...</p>
@@ -261,6 +274,10 @@ const handleClickOutside = (event) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  // 如果是管理员，加载舞者列表
+  if (userStore.isAdmin) {
+    loadDancers()
+  }
   loadProgress()
 })
 
@@ -272,6 +289,10 @@ const loading = ref(true)
 const error = ref('')
 const progressData = ref(null)
 const dancerName = ref('舞者')
+
+// 舞者过滤相关 (仅管理员)
+const selectedDancerId = ref('')
+const dancers = ref([])
 
 const latestAnalysis = computed(() => {
   if (!progressData.value || !progressData.value.videos || progressData.value.videos.length === 0) {
@@ -307,7 +328,9 @@ const loadProgress = async () => {
     }
     
     // 获取进步追踪数据（后端已返回精简的视频列表）
-    const response = await progressAPI.getProgress(userId)
+    // 如果是管理员且选择了舞者，使用选择的舞者 ID，否则使用当前登录用户 ID
+    const progressUserId = userStore.isAdmin && selectedDancerId.value ? selectedDancerId.value : userId
+    const response = await progressAPI.getProgress(progressUserId)
     progressData.value = response
     
     // 如果没有 videos 字段，尝试从 videos 数组构建
@@ -319,6 +342,21 @@ const loadProgress = async () => {
     error.value = '加载失败：' + (err.response?.data?.error || '请稍后重试')
   } finally {
     loading.value = false
+  }
+}
+
+// 舞者选择变化处理
+const handleDancerChange = () => {
+  loadProgress()
+}
+
+// 加载舞者列表 (仅管理员)
+const loadDancers = async () => {
+  try {
+    const response = await userAPI.getUsers(userStore.userId, true)
+    dancers.value = response.users || []
+  } catch (error) {
+    console.error('加载舞者列表失败:', error)
   }
 }
 
@@ -1066,5 +1104,62 @@ const handleLogout = () => {
   .btn-secondary {
     width: 100%;
   }
+}
+
+/* 舞者过滤器样式 (仅管理员) */
+.dancer-filter-section {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.dancer-select {
+  padding: 8px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+  min-width: 200px;
+  transition: all 0.2s;
+}
+
+.dancer-select:hover {
+  border-color: #667eea;
+}
+
+.dancer-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* 时间过滤器样式 */
+.filter-section {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.filter-group:last-child {
+  margin-bottom: 0;
+}
+
+.filter-label {
+  font-weight: 600;
+  color: #555;
+  font-size: 14px;
+  white-space: nowrap;
 }
 </style>

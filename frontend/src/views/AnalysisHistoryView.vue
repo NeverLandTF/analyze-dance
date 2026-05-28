@@ -184,7 +184,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { analysisAPI } from '../api/modules'
+import { analysisAPI, userAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
@@ -204,6 +204,10 @@ const handleClickOutside = (event) => {
     showUserMenu.value = false
   }
 }
+
+// 舞者过滤相关 (仅管理员)
+const selectedDancerId = ref('')
+const dancers = ref([])
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
@@ -287,7 +291,9 @@ const loadAnalyses = async (isLoadMore = false) => {
       }
     }
     
-    const result = await analysisAPI.getAnalysisHistory(userStore.userId, params)
+    // 如果是管理员且选择了舞者，传递 dancer_id 参数
+    const dancerId = userStore.isAdmin && selectedDancerId.value ? selectedDancerId.value : null
+    const result = await analysisAPI.getAnalysisHistory(userStore.userId, dancerId, params)
     const newAnalyses = result.analyses || []
     
     if (isLoadMore) {
@@ -361,6 +367,21 @@ const handleTimeFilterChange = (value) => {
     endDate.value = ''
   }
   loadAnalyses()
+}
+
+// 舞者选择变化处理
+const handleDancerChange = () => {
+  loadAnalyses()
+}
+
+// 加载舞者列表 (仅管理员)
+const loadDancers = async () => {
+  try {
+    const response = await userAPI.getUsers(userStore.userId, true)
+    dancers.value = response.users || []
+  } catch (error) {
+    console.error('加载舞者列表失败:', error)
+  }
 }
 
 // 获取封面图 URL
@@ -1065,5 +1086,62 @@ const handleScroll = (event) => {
   padding: 20px;
   color: #999;
   font-size: 14px;
+}
+
+/* 舞者过滤器样式 (仅管理员) */
+.dancer-filter-section {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.dancer-select {
+  padding: 8px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+  min-width: 200px;
+  transition: all 0.2s;
+}
+
+.dancer-select:hover {
+  border-color: #667eea;
+}
+
+.dancer-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* 时间过滤器样式 */
+.filter-section {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.filter-group:last-child {
+  margin-bottom: 0;
+}
+
+.filter-label {
+  font-weight: 600;
+  color: #555;
+  font-size: 14px;
+  white-space: nowrap;
 }
 </style>
