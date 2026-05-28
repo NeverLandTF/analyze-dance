@@ -1,1 +1,44 @@
-Nothing should be ignored based on the provided file changes, as they only include source code files (.py, .vue) without any build artifacts, dependencies, or temporary files.
+```
+# Dependencies
+node_modules/
+venv/
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Build artifacts
+dist/
+build/
+target/
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+.Python
+```

@@ -283,19 +283,19 @@ const loadProgress = async () => {
     loading.value = true
     error.value = ''
     
-    const dancerId = route.params.dancerId
+    const userId = route.params.dancerId
     
-    // 获取舞者名称
+    // 获取用户名称
     try {
-      const dancerRes = await userAPI.getUser(dancerId)
-      dancerName.value = dancerRes.username || '舞者'
+      const userRes = await userAPI.getUser(userId)
+      dancerName.value = userRes.username || '舞者'
     } catch (e) {
-      console.error('获取舞者信息失败:', e)
+      console.error('获取用户信息失败:', e)
     }
     
     // 获取进步追踪数据（后端已返回包含 analyses 的视频列表）
     try {
-      const response = await progressAPI.getProgress(dancerId)
+      const response = await progressAPI.getProgress(userId)
       progressData.value = response
       
       // 如果没有 videos 字段，尝试从 videos 数组构建
@@ -315,7 +315,7 @@ const loadProgress = async () => {
     } catch (e) {
       console.error('获取进步数据失败:', e)
       // 尝试直接获取视频列表
-      const videosRes = await videoAPI.getVideos(userStore.userId, dancerId)
+      const videosRes = await videoAPI.getVideos(userStore.userId, userId)
       if (videosRes.videos && videosRes.videos.length > 0) {
         progressData.value = {
           videos: videosRes.videos,
