@@ -1,1 +1,3 @@
-Nothing needs to be added to .gitignore since only Vue component files (.vue) were modified, which are source code files that should be tracked in version control. No build artifacts, dependencies, or temporary files were detected in the changes.
+(frontend/src/views/DancerListView.vue is a source code file, and there are no build artifacts, dependencies, or temporary files in the changes)
+
+Nothing to output.
