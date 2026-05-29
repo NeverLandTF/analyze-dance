@@ -121,7 +121,6 @@
               <span class="option-label">多人视频</span>
             </label>
           </div>
-          <p class="hint" v-if="videoType === 'multiple'">多人视频将自动识别人物主体并生成描述</p>
         </div>
         
         <!-- 文件上传区域 -->

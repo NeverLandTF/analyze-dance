@@ -101,7 +101,8 @@ def upload_video_file():
         file_size=file_size,
         thumbnail_url=thumbnail_url,
         duration=duration,
-        dance_style=dance_style
+        dance_style=dance_style,
+        video_type=video_type
     )
     
     db.session.add(video)
