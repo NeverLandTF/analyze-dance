@@ -46,6 +46,7 @@ def upload_video_file():
             return jsonify({'error': f'Dancer with id {dancer_id} not found'}), 400
     title = request.form.get('title')
     dance_style = request.form.get('dance_style', '')
+    video_type = request.form.get('video_type', 'single')  # 视频类型：single（单人）或 multiple（多人）
     
     if not title:
         return jsonify({'error': 'Missing required field (title)'}), 400

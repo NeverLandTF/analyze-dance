@@ -66,6 +66,8 @@ class Video(db.Model):
     file_path = db.Column(db.String(500), nullable=False, comment='文件存储路径')
     file_format = db.Column(db.String(20), comment='文件格式（扩展名）')
     file_size = db.Column(db.BigInteger, comment='文件大小（字节）')
+    video_type = db.Column(db.String(20), comment='视频类型：single(单人), multiple(多人)')
+    subject_description = db.Column(db.Text, comment='人物主体描述（大模型生成）')
     thumbnail_url = db.Column(db.String(255), comment='缩略图 URL')
     duration = db.Column(db.Float, comment='视频时长（秒）')
     upload_date = db.Column(db.DateTime, default=get_cst_now, nullable=False, comment='上传时间 (CST/UTC+8)')

@@ -108,6 +108,22 @@
           </select>
         </div>
         
+        <!-- 视频类型：单人/多人 -->
+        <div class="form-group">
+          <label>视频类型</label>
+          <div class="video-type-options">
+            <label class="radio-option">
+              <input type="radio" v-model="videoType" value="single" :disabled="uploading" />
+              <span class="option-label">单人视频</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" v-model="videoType" value="multiple" :disabled="uploading" />
+              <span class="option-label">多人视频</span>
+            </label>
+          </div>
+          <p class="hint" v-if="videoType === 'multiple'">多人视频将自动识别人物主体并生成描述</p>
+        </div>
+        
         <!-- 文件上传区域 -->
         <div class="upload-area" @dragover.prevent @drop.prevent="handleDrop">
           <input 
@@ -362,6 +378,7 @@ const users = ref([])
 const selectedDancerId = ref(null)
 const videoTitle = ref('')
 const danceStyle = ref('')
+const videoType = ref('single') // 视频类型：single（单人）或 multiple（多人）
 const selectedFiles = ref([])
 const fileInput = ref(null)
 
@@ -544,7 +561,8 @@ const handleUpload = async () => {
           (progress) => {
             // 更新该文件的进度
             fileProgressMap.value[index] = progress
-          }
+          },
+          videoType.value  // 传递视频类型（单人/多人）
         ).then(resolve).catch(reject)
       })
     })
@@ -573,6 +591,7 @@ const resetForm = () => {
   }
   videoTitle.value = ''
   danceStyle.value = ''
+  videoType.value = 'single'  // 重置为单人视频
   selectedFiles.value = []
   uploadError.value = ''
   uploadedVideo.value = null
@@ -1118,6 +1137,42 @@ const handleLogout = () => {
   font-size: 13px;
   color: #999;
   margin-top: 10px;
+}
+
+/* 视频类型选项样式 */
+.video-type-options {
+  display: flex;
+  gap: 20px;
+  padding: 10px 0;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.radio-option:hover {
+  border-color: #667eea;
+  background: #f5f7ff;
+}
+
+.radio-option input[type="radio"] {
+  margin-right: 8px;
+  accent-color: #667eea;
+}
+
+.radio-option input[type="radio"]:disabled {
+  cursor: not-allowed;
+}
+
+.radio-option .option-label {
+  font-size: 14px;
+  color: #333;
 }
 
 .btn-select {
