@@ -106,6 +106,7 @@
             </div>
             <div class="modal-body">
               <video 
+                ref="videoPlayerRef"
                 v-if="videoInfo?.video_url" 
                 :src="getVideoUrl(videoInfo.video_url)" 
                 controls 
@@ -178,7 +179,7 @@
               :key="index" 
               class="movement-item"
             >
-              <div class="movement-time">
+              <div class="movement-time" @click="openVideoAtTime(move.timestamp)">
                 <span class="time-badge">{{ formatTime(move.timestamp) }}</span>
               </div>
               <div class="movement-content">
@@ -266,6 +267,29 @@ const error = ref('')
 const analysis = ref(null)
 const videoInfo = ref(null)
 const showVideoPreview = ref(false)
+const videoPlayerRef = ref(null)
+
+// 打开视频预览并定位到指定时间（减 500ms，慢动作播放）
+const openVideoAtTime = (timestamp) => {
+  if (timestamp === undefined || timestamp === null) return
+  
+  showVideoPreview.value = true
+  
+  // 等待 DOM 更新后操作 video 元素
+  setTimeout(() => {
+    const video = videoPlayerRef.value
+    if (video) {
+      // 定位到指定时间减 500ms
+      video.currentTime = Math.max(0, timestamp - 0.5)
+      // 设置慢动作播放（0.5 倍速）
+      video.playbackRate = 0.5
+      // 自动播放
+      video.play().catch(err => {
+        console.log('自动播放被阻止:', err)
+      })
+    }
+  }, 100)
+}
 
 const loadAnalysis = async () => {
   try {
@@ -873,6 +897,12 @@ const getVideoUrl = (filePath) => {
 
 .movement-time {
   flex-shrink: 0;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.movement-time:hover {
+  transform: scale(1.05);
 }
 
 .time-badge {
