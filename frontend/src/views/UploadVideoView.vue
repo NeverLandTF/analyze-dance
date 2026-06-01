@@ -439,10 +439,14 @@ const handleClickOutside = (event) => {
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   loadUsers()
+  
+  // 监听窗口大小变化，重新初始化 canvas 尺寸
+  window.addEventListener('resize', handleWindowResize)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  window.removeEventListener('resize', handleWindowResize)
 })
 
 // 表单数据
@@ -1005,6 +1009,23 @@ const initCanvas = () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height)
 }
 
+// 窗口大小变化时重新初始化 canvas
+const handleWindowResize = () => {
+  if (boxSelectionVideo.value && boxCanvas.value) {
+    // 保存当前选区数据
+    const savedSelection = boxSelectionData.value
+    
+    // 重新初始化 canvas
+    initCanvas()
+    
+    // 恢复选区数据（如果有）
+    if (savedSelection) {
+      boxSelectionData.value = savedSelection
+      redrawBoxSelection()
+    }
+  }
+}
+
 // 视频加载完成
 const onVideoLoaded = () => {
   if (!boxSelectionVideo.value || !videoProgress.value) return
@@ -1087,23 +1108,37 @@ const updateTimeDisplay = () => {
 
 // 开始绘制
 const startDrawing = (event) => {
-  if (!boxCanvas.value) return
+  if (!boxCanvas.value || !boxSelectionVideo.value) return
   
   isDrawing.value = true
   const rect = boxCanvas.value.getBoundingClientRect()
-  startX.value = event.clientX - rect.left
-  startY.value = event.clientY - rect.top
+  const displayX = event.clientX - rect.left
+  const displayY = event.clientY - rect.top
+  
+  // 将显示尺寸坐标映射到视频实际分辨率坐标
+  const scaleX = boxCanvas.value.width / rect.width
+  const scaleY = boxCanvas.value.height / rect.height
+  
+  startX.value = displayX * scaleX
+  startY.value = displayY * scaleY
   currentX.value = startX.value
   currentY.value = startY.value
 }
 
 // 绘制矩形
 const draw = (event) => {
-  if (!isDrawing.value || !boxCanvas.value) return
+  if (!isDrawing.value || !boxCanvas.value || !boxSelectionVideo.value) return
   
   const rect = boxCanvas.value.getBoundingClientRect()
-  currentX.value = event.clientX - rect.left
-  currentY.value = event.clientY - rect.top
+  const displayX = event.clientX - rect.left
+  const displayY = event.clientY - rect.top
+  
+  // 将显示尺寸坐标映射到视频实际分辨率坐标
+  const scaleX = boxCanvas.value.width / rect.width
+  const scaleY = boxCanvas.value.height / rect.height
+  
+  currentX.value = displayX * scaleX
+  currentY.value = displayY * scaleY
   
   redrawBoxSelection()
 }
