@@ -1012,12 +1012,17 @@ const initCanvas = () => {
   nextTick(() => {
     if (!video || !canvas) return
     
-    // 获取视频元素的显示尺寸
+    // 获取视频元素的显示尺寸（包含 object-fit: contain 的黑边区域）
     const videoRect = video.getBoundingClientRect()
     
-    // 设置 canvas 的 CSS 尺寸与视频显示尺寸一致，确保坐标映射准确
+    // 设置 canvas 的 CSS 尺寸与视频元素显示尺寸一致，确保完全覆盖
     canvas.style.width = videoRect.width + 'px'
     canvas.style.height = videoRect.height + 'px'
+    
+    // 重新绘制已存在的选区（如果有）
+    if (boxSelectionData.value) {
+      redrawBoxSelection()
+    }
   })
 }
 
