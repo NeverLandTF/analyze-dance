@@ -2510,6 +2510,7 @@ const handleLogout = () => {
   max-height: 90vh;
   display: flex;
   flex-direction: column;
+  min-height: 0; /* 允许 modal 在 flex 布局中正确收缩 */
 }
 
 .box-selection-body {
@@ -2520,6 +2521,7 @@ const handleLogout = () => {
   display: flex;
   flex-direction: column;
   gap: 15px;
+  min-height: 0; /* 允许 flex 子项收缩以适应容器 */
 }
 
 .box-selection-instructions {
@@ -2527,6 +2529,7 @@ const handleLogout = () => {
   padding: 15px;
   border-radius: 8px;
   color: #fff;
+  flex-shrink: 0; /* 防止说明区域被压缩 */
 }
 
 .box-selection-instructions p {
@@ -2542,6 +2545,7 @@ const handleLogout = () => {
   overflow: hidden;
   /* 移除固定宽高比，让容器自适应视频实际比例 */
   min-height: 300px;
+  flex-shrink: 1; /* 允许容器在空间不足时收缩 */
 }
 
 .box-selection-video {
@@ -2549,6 +2553,7 @@ const handleLogout = () => {
   height: auto;
   display: block;
   object-fit: contain;
+  max-height: calc(90vh - 250px); /* 限制最大高度，减去 header、instructions、controls、footer 的高度 */
 }
 
 .box-canvas {
@@ -2571,6 +2576,7 @@ const handleLogout = () => {
   padding: 10px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 8px;
+  flex-shrink: 0; /* 防止控制栏被压缩 */
 }
 
 .btn-control {
@@ -2632,6 +2638,7 @@ const handleLogout = () => {
   padding: 15px 20px;
   border-top: 1px solid #333;
   background: #2a2a2a;
+  flex-shrink: 0; /* 防止底部按钮区域被压缩 */
 }
 
 .box-selection-footer .btn-primary,
