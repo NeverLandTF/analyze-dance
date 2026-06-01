@@ -453,7 +453,7 @@ const videoTitle = ref('')
 const danceStyle = ref('')
 const videoType = ref('single') // 视频类型：single（单人）或 multiple（多人）
 const selectedFiles = ref([])
-const fileInput = ref(null)
+const fileInputRef = ref(null)
 
 // 上传状态
 const uploading = ref(false)
@@ -693,15 +693,22 @@ const resetForm = () => {
   uploadedVideo.value = null
   
   // 清空 file input 的值，这样即使选择相同的文件也能触发 change 事件
-  if (fileInput.value) {
-    fileInput.value.value = ''
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
   }
 }
 
 // 处理上传成功后清空文件选择，允许重新选择
 const clearFileSelection = () => {
-  if (fileInput.value) {
-    fileInput.value.value = ''
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+}
+
+// 触发文件选择
+const triggerFileInput = () => {
+  if (fileInputRef.value) {
+    fileInputRef.value.click()
   }
 }
 
