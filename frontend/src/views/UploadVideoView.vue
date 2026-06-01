@@ -127,7 +127,7 @@
         <div class="upload-area" @dragover.prevent @drop.prevent="handleDrop">
           <input 
             type="file" 
-            ref="fileInput" 
+            ref="fileInputRef" 
             accept="video/*" 
             @change="handleFileSelect"
             multiple
@@ -138,13 +138,13 @@
             <div class="upload-icon">📹</div>
             <p>拖拽视频文件到此处，或点击选择文件</p>
             <p class="hint">支持 MP4, AVI, MOV, MKV, WebM 格式，最大 1GB，可多选</p>
-            <button @click="fileInput.click()" class="btn-select" :disabled="uploading">
+            <button @click="triggerFileInput" class="btn-select" :disabled="uploading">
               选择文件
             </button>
           </div>
           <div v-else class="file-list">
             <!-- 继续添加文件按钮 -->
-            <button @click="fileInput.click()" class="btn-add-more" :disabled="uploading">
+            <button @click="triggerFileInput" class="btn-add-more" :disabled="uploading">
               ➕ 继续添加文件
             </button>
             <div v-for="(file, index) in selectedFiles" :key="index" class="file-info">
@@ -153,6 +153,8 @@
                 <div class="file-name">{{ file.name }}</div>
                 <div class="file-size">{{ formatFileSize(file.size) }}</div>
                 <div class="file-title-preview">标题：{{ getAutoTitle(index) }}</div>
+                <!-- 单人/多人标识 -->
+                <div v-if="videoType === 'multiple'" class="file-type-badge">多人视频</div>
                 <!-- 单个文件上传进度 -->
                 <div v-if="uploading && fileProgressMap[index] !== undefined" class="file-progress">
                   <div class="file-progress-bar">
@@ -161,9 +163,21 @@
                   <span class="file-progress-text">{{ fileProgressMap[index] }}%</span>
                 </div>
               </div>
-              <button @click="removeFile(index)" class="btn-remove" :disabled="uploading">
-                ✕
-              </button>
+              <div class="file-actions">
+                <!-- 多人视频才显示框选按钮 -->
+                <button 
+                  v-if="videoType === 'multiple'" 
+                  @click="openBoxSelection(index)" 
+                  class="btn-box-select"
+                  :disabled="uploading"
+                  title="框选人物主体"
+                >
+                  ✏️ 框选
+                </button>
+                <button @click="removeFile(index)" class="btn-remove" :disabled="uploading">
+                  ✕
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -334,6 +348,66 @@
             </div>
           </div>
         </div>
+
+        <!-- 框选人物主体弹窗 -->
+        <div v-if="showBoxSelection" class="modal-overlay" @click.self="closeBoxSelection">
+          <div class="box-selection-modal" @click.stop>
+            <div class="modal-header">
+              <h2>框选人物主体 - {{ selectedFiles[currentBoxFileIndex]?.name }}</h2>
+              <button @click="closeBoxSelection" class="btn-close">×</button>
+            </div>
+            <div class="modal-body box-selection-body">
+              <div class="box-selection-instructions">
+                <p>1. 拖动进度条选择合适帧</p>
+                <p>2. 在视频上点击并拖动绘制矩形框</p>
+                <p>3. 点击"保存选中区域"按钮</p>
+              </div>
+              <div class="video-canvas-container" ref="videoCanvasContainerRef">
+                <video 
+                  ref="boxSelectionVideo"
+                  :src="currentBoxVideoUrl"
+                  class="box-selection-video"
+                  @loadedmetadata="onVideoLoaded"
+                  @seeked="onVideoSeeked"
+                ></video>
+                <canvas 
+                  ref="boxCanvas"
+                  class="box-canvas"
+                  @mousedown="startDrawing"
+                  @mousemove="draw"
+                  @mouseup="stopDrawing"
+                  @mouseleave="stopDrawing"
+                ></canvas>
+              </div>
+              <div class="video-controls">
+                <button @click="togglePlayPause" class="btn-control">
+                  {{ isPlaying ? '⏸️ 暂停' : '▶️ 播放' }}
+                </button>
+                <input 
+                  type="range" 
+                  ref="videoProgress"
+                  min="0" 
+                  max="100" 
+                  value="0" 
+                  class="progress-slider"
+                  @input="onProgressChange"
+                />
+                <span class="time-display">{{ currentTimeDisplay }} / {{ durationDisplay }}</span>
+              </div>
+            </div>
+            <div class="modal-footer box-selection-footer">
+              <button @click="saveBoxSelection" class="btn-primary" :disabled="!hasBoxSelection">
+                💾 保存选中区域
+              </button>
+              <button @click="clearBoxSelection" class="btn-secondary" :disabled="!hasBoxSelection">
+                🗑️ 清除选区
+              </button>
+              <button @click="closeBoxSelection" class="btn-secondary">
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   </div>
@@ -390,6 +464,25 @@ const uploadedVideo = ref(null)
 // 预览相关
 const showPreview = ref(false)
 const currentPreviewVideo = ref(null)
+
+// 框选功能相关
+const showBoxSelection = ref(false)
+const currentBoxFileIndex = ref(-1)
+const currentBoxVideoUrl = ref('')
+const currentBoxVideoFile = ref(null)
+const boxSelectionVideo = ref(null)
+const boxCanvas = ref(null)
+const videoCanvasContainerRef = ref(null)
+const videoProgress = ref(null)
+const isPlaying = ref(false)
+const currentTime = ref(0)
+const duration = ref(0)
+const isDrawing = ref(false)
+const startX = ref(0)
+const startY = ref(0)
+const currentX = ref(0)
+const currentY = ref(0)
+const boxSelectionData = ref(null) // 保存的画框数据 {x, y, width, height, timestamp}
 
 // 加载状态
 const loading = ref(false)
@@ -550,6 +643,9 @@ const handleUpload = async () => {
       // 初始化该文件的进度为 0
       fileProgressMap.value[index] = 0
       
+      // 获取框选的帧图片 blob（如果有）
+      const frameImageBlob = file.frameImage ? file.frameImage.blob : null
+      
       return new Promise((resolve, reject) => {
         videoAPI.uploadVideoFile(
           file,
@@ -561,7 +657,8 @@ const handleUpload = async () => {
             // 更新该文件的进度
             fileProgressMap.value[index] = progress
           },
-          videoType.value  // 传递视频类型（单人/多人）
+          videoType.value,  // 传递视频类型（单人/多人）
+          frameImageBlob    // 传递框选的帧图片（如果有）
         ).then(resolve).catch(reject)
       })
     })
@@ -833,6 +930,422 @@ const viewAnalysisResult = (video) => {
 
 // 视频播放器引用
 const videoPlayer = ref(null)
+
+// ========== 框选功能方法实现 ==========
+
+// 打开框选弹窗
+const openBoxSelection = (index) => {
+  if (index < 0 || index >= selectedFiles.value.length) return
+  
+  currentBoxFileIndex.value = index
+  const file = selectedFiles.value[index]
+  currentBoxVideoFile.value = file
+  
+  // 创建本地 URL 用于预览
+  currentBoxVideoUrl.value = URL.createObjectURL(file)
+  
+  // 重置画框数据
+  boxSelectionData.value = null
+  isDrawing.value = false
+  
+  showBoxSelection.value = true
+  
+  // 等待 DOM 更新后初始化 canvas
+  setTimeout(() => {
+    initCanvas()
+  }, 100)
+}
+
+// 关闭框选弹窗
+const closeBoxSelection = () => {
+  showBoxSelection.value = false
+  
+  // 停止视频播放
+  if (boxSelectionVideo.value) {
+    boxSelectionVideo.value.pause()
+    boxSelectionVideo.value.currentTime = 0
+  }
+  
+  // 释放本地 URL
+  if (currentBoxVideoUrl.value) {
+    URL.revokeObjectURL(currentBoxVideoUrl.value)
+    currentBoxVideoUrl.value = ''
+  }
+  
+  currentBoxFileIndex.value = -1
+  currentBoxVideoFile.value = null
+  boxSelectionData.value = null
+}
+
+// 初始化 Canvas
+const initCanvas = () => {
+  if (!boxCanvas.value || !boxSelectionVideo.value) return
+  
+  const canvas = boxCanvas.value
+  const video = boxSelectionVideo.value
+  const ctx = canvas.getContext('2d')
+  
+  // 设置 canvas 尺寸与视频显示尺寸一致
+  const container = videoCanvasContainerRef.value
+  if (container) {
+    canvas.width = container.clientWidth
+    canvas.height = container.clientHeight
+  } else {
+    canvas.width = video.clientWidth || 640
+    canvas.height = video.clientHeight || 360
+  }
+  
+  // 清空画布
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+}
+
+// 视频加载完成
+const onVideoLoaded = () => {
+  if (!boxSelectionVideo.value || !videoProgress.value) return
+  
+  const video = boxSelectionVideo.value
+  duration.value = video.duration || 0
+  
+  // 初始化 canvas
+  initCanvas()
+  
+  // 更新时间显示
+  updateTimeDisplay()
+}
+
+// 视频 seek 完成
+const onVideoSeeked = () => {
+  if (!boxSelectionVideo.value) return
+  currentTime.value = boxSelectionVideo.value.currentTime
+  updateTimeDisplay()
+  
+  // 重新绘制 canvas（如果有已保存的选区）
+  redrawBoxSelection()
+}
+
+// 更新进度条
+const onProgressChange = (event) => {
+  if (!boxSelectionVideo.value || !duration.value) return
+  
+  const percent = event.target.value
+  const newTime = (percent / 100) * duration.value
+  boxSelectionVideo.value.currentTime = newTime
+}
+
+// 切换播放/暂停
+const togglePlayPause = () => {
+  if (!boxSelectionVideo.value) return
+  
+  const video = boxSelectionVideo.value
+  if (video.paused) {
+    video.play()
+    isPlaying.value = true
+    // 监听时间更新
+    video.addEventListener('timeupdate', onTimeUpdate)
+  } else {
+    video.pause()
+    isPlaying.value = false
+    video.removeEventListener('timeupdate', onTimeUpdate)
+  }
+}
+
+// 时间更新处理
+const onTimeUpdate = () => {
+  if (!boxSelectionVideo.value || !videoProgress.value) return
+  
+  const video = boxSelectionVideo.value
+  currentTime.value = video.currentTime
+  
+  // 更新进度条
+  if (duration.value > 0) {
+    const percent = (currentTime.value / duration.value) * 100
+    videoProgress.value.value = percent
+  }
+  
+  updateTimeDisplay()
+}
+
+// 格式化时间显示
+const formatTime = (seconds) => {
+  if (!seconds || isNaN(seconds)) return '00:00'
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
+// 更新时间显示
+const updateTimeDisplay = () => {
+  currentTimeDisplay.value = formatTime(currentTime.value)
+  durationDisplay.value = formatTime(duration.value)
+}
+
+// 开始绘制
+const startDrawing = (event) => {
+  if (!boxCanvas.value) return
+  
+  isDrawing.value = true
+  const rect = boxCanvas.value.getBoundingClientRect()
+  startX.value = event.clientX - rect.left
+  startY.value = event.clientY - rect.top
+  currentX.value = startX.value
+  currentY.value = startY.value
+}
+
+// 绘制矩形
+const draw = (event) => {
+  if (!isDrawing.value || !boxCanvas.value) return
+  
+  const rect = boxCanvas.value.getBoundingClientRect()
+  currentX.value = event.clientX - rect.left
+  currentY.value = event.clientY - rect.top
+  
+  redrawBoxSelection()
+}
+
+// 停止绘制
+const stopDrawing = () => {
+  if (!isDrawing.value) return
+  isDrawing.value = false
+  
+  // 计算并保存选区
+  const width = currentX.value - startX.value
+  const height = currentY.value - startY.value
+  
+  // 确保宽高为正数
+  const x = width < 0 ? currentX.value : startX.value
+  const y = height < 0 ? currentY.value : startY.value
+  const absWidth = Math.abs(width)
+  const absHeight = Math.abs(height)
+  
+  // 只有当选区足够大时才保存
+  if (absWidth > 10 && absHeight > 10) {
+    boxSelectionData.value = {
+      x,
+      y,
+      width: absWidth,
+      height: absHeight,
+      timestamp: currentTime.value,
+      canvasWidth: boxCanvas.value?.width || 0,
+      canvasHeight: boxCanvas.value?.height || 0
+    }
+    
+    // 重绘最终选区
+    redrawBoxSelection()
+  }
+}
+
+// 重绘选区
+const redrawBoxSelection = () => {
+  if (!boxCanvas.value) return
+  
+  const canvas = boxCanvas.value
+  const ctx = canvas.getContext('2d')
+  
+  // 清空画布
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  
+  // 如果有已保存的选区，绘制它
+  if (boxSelectionData.value) {
+    const { x, y, width, height } = boxSelectionData.value
+    
+    // 绘制半透明背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    
+    // 清除选区部分，显示视频
+    ctx.clearRect(x, y, width, height)
+    
+    // 绘制选区边框
+    ctx.strokeStyle = '#00ff00'
+    ctx.lineWidth = 2
+    ctx.strokeRect(x, y, width, height)
+    
+    // 绘制角落标记
+    const cornerSize = 10
+    ctx.strokeStyle = '#00ff00'
+    ctx.lineWidth = 3
+    
+    // 左上角
+    ctx.beginPath()
+    ctx.moveTo(x, y + cornerSize)
+    ctx.lineTo(x, y)
+    ctx.lineTo(x + cornerSize, y)
+    ctx.stroke()
+    
+    // 右上角
+    ctx.beginPath()
+    ctx.moveTo(x + width - cornerSize, y)
+    ctx.lineTo(x + width, y)
+    ctx.lineTo(x + width, y + cornerSize)
+    ctx.stroke()
+    
+    // 左下角
+    ctx.beginPath()
+    ctx.moveTo(x, y + height - cornerSize)
+    ctx.lineTo(x, y + height)
+    ctx.lineTo(x + cornerSize, y + height)
+    ctx.stroke()
+    
+    // 右下角
+    ctx.beginPath()
+    ctx.moveTo(x + width - cornerSize, y + height)
+    ctx.lineTo(x + width, y + height)
+    ctx.lineTo(x + width, y + height - cornerSize)
+    ctx.stroke()
+  } else if (isDrawing.value) {
+    // 正在绘制时，绘制临时矩形
+    const width = currentX.value - startX.value
+    const height = currentY.value - startY.value
+    const x = width < 0 ? currentX.value : startX.value
+    const y = height < 0 ? currentY.value : startY.value
+    const absWidth = Math.abs(width)
+    const absHeight = Math.abs(height)
+    
+    // 绘制半透明背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    
+    // 清除选区部分
+    ctx.clearRect(x, y, absWidth, absHeight)
+    
+    // 绘制选区边框
+    ctx.strokeStyle = '#00ff00'
+    ctx.lineWidth = 2
+    ctx.strokeRect(x, y, absWidth, absHeight)
+  }
+}
+
+// 清除选区
+const clearBoxSelection = () => {
+  boxSelectionData.value = null
+  if (boxCanvas.value) {
+    const ctx = boxCanvas.value.getContext('2d')
+    ctx.clearRect(0, 0, boxCanvas.value.width, boxCanvas.value.height)
+  }
+}
+
+// 保存选区 - 截取当前帧并保存为图片
+const saveBoxSelection = async () => {
+  if (!boxSelectionData.value || currentBoxFileIndex.value < 0) {
+    showToast('请先绘制选区', 'error')
+    return
+  }
+  
+  const file = selectedFiles.value[currentBoxFileIndex.value]
+  if (!file) return
+  
+  try {
+    // 获取视频元素和 canvas
+    const video = boxSelectionVideo.value
+    const canvas = boxCanvas.value
+    
+    if (!video || !canvas) {
+      showToast('视频或画布未准备好', 'error')
+      return
+    }
+    
+    // 创建一个临时 canvas 用于截取带选区的帧
+    const tempCanvas = document.createElement('canvas')
+    const tempCtx = tempCanvas.getContext('2d')
+    
+    // 设置 canvas 尺寸与视频一致
+    tempCanvas.width = canvas.width
+    tempCanvas.height = canvas.height
+    
+    // 先绘制视频当前帧
+    tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height)
+    
+    // 再绘制选区边框（叠加在视频上）
+    const { x, y, width, height } = boxSelectionData.value
+    
+    // 绘制半透明遮罩
+    tempCtx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+    tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height)
+    
+    // 清除选区部分，显示视频
+    tempCtx.clearRect(x, y, width, height)
+    
+    // 绘制选区边框
+    tempCtx.strokeStyle = '#00ff00'
+    tempCtx.lineWidth = 2
+    tempCtx.strokeRect(x, y, width, height)
+    
+    // 绘制角落标记
+    const cornerSize = 10
+    tempCtx.strokeStyle = '#00ff00'
+    tempCtx.lineWidth = 3
+    
+    // 左上角
+    tempCtx.beginPath()
+    tempCtx.moveTo(x, y + cornerSize)
+    tempCtx.lineTo(x, y)
+    tempCtx.lineTo(x + cornerSize, y)
+    tempCtx.stroke()
+    
+    // 右上角
+    tempCtx.beginPath()
+    tempCtx.moveTo(x + width - cornerSize, y)
+    tempCtx.lineTo(x + width, y)
+    tempCtx.lineTo(x + width, y + cornerSize)
+    tempCtx.stroke()
+    
+    // 左下角
+    tempCtx.beginPath()
+    tempCtx.moveTo(x, y + height - cornerSize)
+    tempCtx.lineTo(x, y + height)
+    tempCtx.lineTo(x + cornerSize, y + height)
+    tempCtx.stroke()
+    
+    // 右下角
+    tempCtx.beginPath()
+    tempCtx.moveTo(x + width - cornerSize, y + height)
+    tempCtx.lineTo(x + width, y + height)
+    tempCtx.lineTo(x + width, y + height - cornerSize)
+    tempCtx.stroke()
+    
+    // 将 canvas 转换为 Blob (PNG 格式)
+    const blob = await new Promise((resolve) => {
+      tempCanvas.toBlob((blob) => {
+        resolve(blob)
+      }, 'image/png')
+    })
+    
+    if (!blob) {
+      showToast('生成图片失败', 'error')
+      return
+    }
+    
+    // 创建缩略图文件名
+    const thumbnailFileName = file.name.replace(/\.[^/.]+$/, '') + '_frame.png'
+    
+    // 将截取的帧图片保存到文件对象中
+    file.frameImage = {
+      blob: blob,
+      fileName: thumbnailFileName,
+      timestamp: currentTime.value,
+      url: URL.createObjectURL(blob) // 用于预览
+    }
+    
+    showToast('帧图片已保存！', 'success')
+  } catch (error) {
+    console.error('保存帧图片失败:', error)
+    showToast('保存帧图片失败', 'error')
+  }
+  
+  // 关闭弹窗
+  closeBoxSelection()
+}
+
+// 计算属性：是否有选区
+const hasBoxSelection = computed(() => {
+  return boxSelectionData.value !== null
+})
+
+// 计算属性：当前时间显示
+const currentTimeDisplay = ref('00:00')
+
+// 计算属性：总时长显示
+const durationDisplay = ref('00:00')
 
 const handleLogout = () => {
   userStore.logout()
@@ -1863,6 +2376,171 @@ const handleLogout = () => {
   padding: 15px 20px;
   border-top: 1px solid #eee;
   background: #f9f9f9;
+}
+
+/* 框选弹窗样式 */
+.box-selection-modal {
+  width: 90vw;
+  max-width: 1200px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.box-selection-body {
+  padding: 20px;
+  background: #1a1a1a;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.box-selection-instructions {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 15px;
+  border-radius: 8px;
+  color: #fff;
+}
+
+.box-selection-instructions p {
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+.video-canvas-container {
+  position: relative;
+  width: 100%;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  aspect-ratio: 16/9;
+}
+
+.box-selection-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.box-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.video-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.btn-control {
+  padding: 8px 16px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.btn-control:hover {
+  background: #45a049;
+}
+
+.progress-slider {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  outline: none;
+}
+
+.progress-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #4CAF50;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.progress-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #4CAF50;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.time-display {
+  color: #fff;
+  font-size: 14px;
+  min-width: 100px;
+  text-align: right;
+  font-family: monospace;
+}
+
+.box-selection-footer {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  padding: 15px 20px;
+  border-top: 1px solid #333;
+  background: #2a2a2a;
+}
+
+.box-selection-footer .btn-primary,
+.box-selection-footer .btn-secondary {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.box-selection-footer .btn-primary {
+  background: #4CAF50;
+  color: white;
+  border: none;
+}
+
+.box-selection-footer .btn-primary:hover:not(:disabled) {
+  background: #45a049;
+}
+
+.box-selection-footer .btn-primary:disabled {
+  background: #666;
+  cursor: not-allowed;
+}
+
+.box-selection-footer .btn-secondary {
+  background: transparent;
+  color: #fff;
+  border: 1px solid #666;
+}
+
+.box-selection-footer .btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.box-selection-footer .btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 @media (max-width: 768px) {

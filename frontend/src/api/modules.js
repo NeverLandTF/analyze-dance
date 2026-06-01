@@ -91,7 +91,7 @@ export const dancerAPI = {
 
 export const videoAPI = {
   // 上传视频文件
-  uploadVideoFile(file, userId, dancerId, title, danceStyle = '', onProgress = null, videoType = 'single') {
+  uploadVideoFile(file, userId, dancerId, title, danceStyle = '', onProgress = null, videoType = 'single', frameImageBlob = null) {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('user_id', userId)
@@ -105,6 +105,11 @@ export const videoAPI = {
     }
     // 添加视频类型参数（单人/多人）
     formData.append('video_type', videoType)
+    
+    // 如果有框选的帧图片，添加到 formData 中
+    if (frameImageBlob) {
+      formData.append('frame_image', frameImageBlob, 'frame.png')
+    }
     
     return api.post('/videos/upload', formData, {
       headers: {
