@@ -413,7 +413,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, inject, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, inject, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { videoAPI, userAPI, analysisAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
@@ -1001,12 +1001,24 @@ const initCanvas = () => {
   const video = boxSelectionVideo.value
   const ctx = canvas.getContext('2d')
   
-  // 设置 canvas 尺寸为视频实际分辨率，保证框选比例与原视频一致
+  // 设置 canvas 内部尺寸为视频实际分辨率，保证框选比例与原视频一致
   canvas.width = video.videoWidth || 640
   canvas.height = video.videoHeight || 360
   
   // 清空画布
   ctx.clearRect(0, 0, canvas.width, canvas.height)
+  
+  // 等待 DOM 更新后，将 canvas 的 CSS 显示尺寸设置为与视频元素一致
+  nextTick(() => {
+    if (!video || !canvas) return
+    
+    // 获取视频元素的显示尺寸
+    const videoRect = video.getBoundingClientRect()
+    
+    // 设置 canvas 的 CSS 尺寸与视频显示尺寸一致，确保坐标映射准确
+    canvas.style.width = videoRect.width + 'px'
+    canvas.style.height = videoRect.height + 'px'
+  })
 }
 
 // 窗口大小变化时重新初始化 canvas
@@ -1015,7 +1027,7 @@ const handleWindowResize = () => {
     // 保存当前选区数据
     const savedSelection = boxSelectionData.value
     
-    // 重新初始化 canvas
+    // 重新初始化 canvas（会重新设置内部尺寸和 CSS 显示尺寸）
     initCanvas()
     
     // 恢复选区数据（如果有）
@@ -1026,6 +1038,21 @@ const handleWindowResize = () => {
   }
 }
 
+// 视频加载完成后也需要等待视频尺寸稳定后再设置 canvas 尺寸
+const setupCanvasSize = () => {
+  if (!boxSelectionVideo.value || !boxCanvas.value) return
+  
+  const video = boxSelectionVideo.value
+  const canvas = boxCanvas.value
+  
+  // 获取视频元素的显示尺寸
+  const videoRect = video.getBoundingClientRect()
+  
+  // 设置 canvas 的 CSS 尺寸与视频显示尺寸一致，确保坐标映射准确
+  canvas.style.width = videoRect.width + 'px'
+  canvas.style.height = videoRect.height + 'px'
+}
+
 // 视频加载完成
 const onVideoLoaded = () => {
   if (!boxSelectionVideo.value || !videoProgress.value) return
@@ -1033,11 +1060,16 @@ const onVideoLoaded = () => {
   const video = boxSelectionVideo.value
   duration.value = video.duration || 0
   
-  // 初始化 canvas
+  // 初始化 canvas（设置内部分辨率和 CSS 显示尺寸）
   initCanvas()
   
   // 更新时间显示
   updateTimeDisplay()
+  
+  // 额外调用一次 setupCanvasSize 确保视频渲染完成后尺寸正确
+  nextTick(() => {
+    setupCanvasSize()
+  })
 }
 
 // 视频 seek 完成
@@ -2498,26 +2530,30 @@ const handleLogout = () => {
   background: #000;
   border-radius: 8px;
   overflow: hidden;
-  aspect-ratio: 16/9;
+  /* 移除固定宽高比，让容器自适应视频实际比例 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
 }
 
 .box-selection-video {
   width: 100%;
-  height: 100%;
-  object-fit: contain;
+  height: auto;
   display: block;
+  object-fit: contain;
 }
 
 .box-canvas {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   cursor: crosshair;
   /* 确保 canvas 内容透明，不遮挡视频 */
   background: transparent;
   pointer-events: auto;
+  /* Canvas 尺寸由 JS 设置为视频实际分辨率，CSS 不覆盖 */
 }
 
 .video-controls {
