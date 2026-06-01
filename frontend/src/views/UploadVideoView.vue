@@ -1023,6 +1023,11 @@ const initCanvas = () => {
     if (boxSelectionData.value) {
       redrawBoxSelection()
     }
+    
+    // 额外调用一次 setupCanvasSize 确保视频渲染完成后尺寸正确
+    setTimeout(() => {
+      setupCanvasSize()
+    }, 100)
   })
 }
 
@@ -2536,9 +2541,6 @@ const handleLogout = () => {
   border-radius: 8px;
   overflow: hidden;
   /* 移除固定宽高比，让容器自适应视频实际比例 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
   min-height: 300px;
 }
 
@@ -2551,14 +2553,15 @@ const handleLogout = () => {
 
 .box-canvas {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   cursor: crosshair;
   /* 确保 canvas 内容透明，不遮挡视频 */
   background: transparent;
   pointer-events: auto;
-  /* Canvas 尺寸由 JS 设置为视频实际分辨率，CSS 不覆盖 */
+  /* Canvas 内部尺寸由 JS 设置为视频实际分辨率 */
 }
 
 .video-controls {
