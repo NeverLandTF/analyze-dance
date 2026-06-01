@@ -147,7 +147,7 @@
             <button @click="triggerFileInput" class="btn-add-more" :disabled="uploading">
               ➕ 继续添加文件
             </button>
-            <div v-for="(file, index) in selectedFiles" :key="index" class="file-info">
+            <div v-for="(file, index) in selectedFiles" :key="index" class="file-info" :class="{ 'box-selected-file': boxSelectedMap[index] }">
               <div class="file-icon">🎬</div>
               <div class="file-details">
                 <div class="file-name">{{ file.name }}</div>
@@ -167,10 +167,11 @@
                   v-if="videoType === 'multiple'" 
                   @click="openBoxSelection(index)" 
                   class="btn-box-select"
+                  :class="{ 'box-selected': boxSelectedMap[index] }"
                   :disabled="uploading"
-                  title="框选人物主体"
+                  :title="boxSelectedMap[index] ? '已框选' : '框选人物主体'"
                 >
-                  ⬜
+                  {{ boxSelectedMap[index] ? '✅' : '⬜' }}
                 </button>
                 <button @click="removeFile(index)" class="btn-remove" :disabled="uploading">
                   ✕
@@ -412,7 +413,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, inject } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, inject, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { videoAPI, userAPI, analysisAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
@@ -481,6 +482,7 @@ const startY = ref(0)
 const currentX = ref(0)
 const currentY = ref(0)
 const boxSelectionData = ref(null) // 保存的画框数据 {x, y, width, height, timestamp}
+const boxSelectedMap = ref({}) // 记录每个文件是否已完成框选 { [index]: true/false }
 
 // 加载状态
 const loading = ref(false)
@@ -575,6 +577,10 @@ const validateAndSetFiles = (files) => {
 // 移除单个文件
 const removeFile = (index) => {
   selectedFiles.value.splice(index, 1)
+  // 同时清除框选状态
+  if (boxSelectedMap.value[index]) {
+    delete boxSelectedMap.value[index]
+  }
 }
 
 // 生成时间戳标题
@@ -687,6 +693,7 @@ const resetForm = () => {
   danceStyle.value = ''
   videoType.value = 'single'  // 重置为单人视频
   selectedFiles.value = []
+  boxSelectedMap.value = {}  // 重置框选状态
   uploadError.value = ''
   uploadedVideo.value = null
   
@@ -949,7 +956,7 @@ const openBoxSelection = (index) => {
   // 创建本地 URL 用于预览
   currentBoxVideoUrl.value = URL.createObjectURL(file)
   
-  // 重置画框数据
+  // 重置画框数据（但保留已保存的框选状态）
   boxSelectionData.value = null
   isDrawing.value = false
   
@@ -990,15 +997,9 @@ const initCanvas = () => {
   const video = boxSelectionVideo.value
   const ctx = canvas.getContext('2d')
   
-  // 设置 canvas 尺寸与视频显示尺寸一致
-  const container = videoCanvasContainerRef.value
-  if (container) {
-    canvas.width = container.clientWidth
-    canvas.height = container.clientHeight
-  } else {
-    canvas.width = video.clientWidth || 640
-    canvas.height = video.clientHeight || 360
-  }
+  // 设置 canvas 尺寸为视频实际分辨率，保证框选比例与原视频一致
+  canvas.width = video.videoWidth || 640
+  canvas.height = video.videoHeight || 360
   
   // 清空画布
   ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -1146,20 +1147,14 @@ const redrawBoxSelection = () => {
   const canvas = boxCanvas.value
   const ctx = canvas.getContext('2d')
   
-  // 清空画布
+  // 清空画布 - 完全透明，不遮挡视频
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   
   // 如果有已保存的选区，绘制它
   if (boxSelectionData.value) {
     const { x, y, width, height } = boxSelectionData.value
     
-    // 绘制半透明背景
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    
-    // 清除选区部分，显示视频
-    ctx.clearRect(x, y, width, height)
-    
+    // 只绘制边框和角落标记，不再绘制半透明遮罩，避免遮挡视频内容
     // 绘制选区边框
     ctx.strokeStyle = '#00ff00'
     ctx.lineWidth = 2
@@ -1206,14 +1201,7 @@ const redrawBoxSelection = () => {
     const absWidth = Math.abs(width)
     const absHeight = Math.abs(height)
     
-    // 绘制半透明背景
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    
-    // 清除选区部分
-    ctx.clearRect(x, y, absWidth, absHeight)
-    
-    // 绘制选区边框
+    // 只绘制边框，不再绘制半透明遮罩，避免遮挡视频内容
     ctx.strokeStyle = '#00ff00'
     ctx.lineWidth = 2
     ctx.strokeRect(x, y, absWidth, absHeight)
@@ -1226,6 +1214,10 @@ const clearBoxSelection = () => {
   if (boxCanvas.value) {
     const ctx = boxCanvas.value.getContext('2d')
     ctx.clearRect(0, 0, boxCanvas.value.width, boxCanvas.value.height)
+  }
+  // 清除该文件的框选状态
+  if (currentBoxFileIndex.value >= 0 && boxSelectedMap.value[currentBoxFileIndex.value]) {
+    delete boxSelectedMap.value[currentBoxFileIndex.value]
   }
 }
 
@@ -1260,15 +1252,8 @@ const saveBoxSelection = async () => {
     // 先绘制视频当前帧
     tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height)
     
-    // 再绘制选区边框（叠加在视频上）
+    // 再绘制选区边框（叠加在视频上）- 不再绘制半透明遮罩，只保留边框
     const { x, y, width, height } = boxSelectionData.value
-    
-    // 绘制半透明遮罩
-    tempCtx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-    tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height)
-    
-    // 清除选区部分，显示视频
-    tempCtx.clearRect(x, y, width, height)
     
     // 绘制选区边框
     tempCtx.strokeStyle = '#00ff00'
@@ -1330,6 +1315,9 @@ const saveBoxSelection = async () => {
       timestamp: currentTime.value,
       url: URL.createObjectURL(blob) // 用于预览
     }
+    
+    // 标记该文件已完成框选
+    boxSelectedMap.value[currentBoxFileIndex.value] = true
     
     showToast('帧图片已保存！', 'success')
   } catch (error) {
@@ -1721,6 +1709,20 @@ const handleLogout = () => {
   background: #f9f9f9;
   border-radius: 8px;
   margin-bottom: 10px;
+  transition: all 0.3s ease;
+}
+
+/* 框选成功后的文件项样式 */
+.file-info.box-selected-file {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 2px solid #10b981;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+
+.file-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 .file-list {
@@ -1855,6 +1857,23 @@ const handleLogout = () => {
 .btn-box-select:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* 框选成功后的样式 */
+.btn-box-select.box-selected {
+  background: #10b981;
+  color: white;
+  border: 2px solid #059669;
+  animation: pulse-success 0.5s ease-in-out;
+}
+
+@keyframes pulse-success {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
 }
 
 .actions {
@@ -2461,6 +2480,9 @@ const handleLogout = () => {
   width: 100%;
   height: 100%;
   cursor: crosshair;
+  /* 确保 canvas 内容透明，不遮挡视频 */
+  background: transparent;
+  pointer-events: auto;
 }
 
 .video-controls {
