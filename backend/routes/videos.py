@@ -63,6 +63,25 @@ def upload_video_file():
     if not current_user.get('is_admin', False) and int(user_id) != current_user.get('user_id'):
         return jsonify({'error': 'Permission denied. You can only upload videos for yourself.'}), 403
     
+    # 处理 frame_image（仅当视频类型为多人视频时需要）
+    frame_image_path = None
+    if video_type == 'multiple' and 'frame_image' in request.files:
+        frame_image_file = request.files['frame_image']
+        if frame_image_file.filename != '':
+            allowed_image_extensions = ['jpg', 'jpeg', 'png', 'webp']
+            if allowed_file(frame_image_file.filename, allowed_image_extensions):
+                original_frame_filename = secure_filename(frame_image_file.filename)
+                frame_ext = original_frame_filename.rsplit('.', 1)[1].lower() if '.' in original_frame_filename else 'jpg'
+                frame_unique_filename = f"{uuid.uuid4().hex}.{frame_ext}"
+                
+                # 保存到 images 子目录
+                upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+                os.makedirs(os.path.join(upload_folder, 'images'), exist_ok=True)
+                frame_file_path = os.path.join(upload_folder, 'images', frame_unique_filename)
+                frame_image_file.save(frame_file_path)
+                
+                frame_image_path = f'/uploads/images/{frame_unique_filename}'
+    
     # 生成唯一的文件名
     original_filename = secure_filename(file.filename)
     ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else 'mp4'
@@ -102,7 +121,8 @@ def upload_video_file():
         thumbnail_url=thumbnail_url,
         duration=duration,
         dance_style=dance_style,
-        video_type=video_type
+        video_type=video_type,
+        frame_image_path=frame_image_path
     )
     
     db.session.add(video)

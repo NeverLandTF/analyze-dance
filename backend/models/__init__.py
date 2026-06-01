@@ -69,6 +69,7 @@ class Video(db.Model):
     video_type = db.Column(db.String(20), comment='视频类型：single(单人), multiple(多人)')
     subject_description = db.Column(db.Text, comment='人物主体描述（大模型生成）')
     thumbnail_url = db.Column(db.String(255), comment='缩略图 URL')
+    frame_image_path = db.Column(db.String(500), comment='框选帧图片路径（多人视频使用）')
     duration = db.Column(db.Float, comment='视频时长（秒）')
     upload_date = db.Column(db.DateTime, default=get_cst_now, nullable=False, comment='上传时间 (CST/UTC+8)')
     dance_style = db.Column(db.String(50), comment='舞蹈风格：breaking, popping, locking 等')
