@@ -153,8 +153,6 @@
                 <div class="file-name">{{ file.name }}</div>
                 <div class="file-size">{{ formatFileSize(file.size) }}</div>
                 <div class="file-title-preview">标题：{{ getAutoTitle(index) }}</div>
-                <!-- 单人/多人标识 -->
-                <div v-if="videoType === 'multiple'" class="file-type-badge">多人视频</div>
                 <!-- 单个文件上传进度 -->
                 <div v-if="uploading && fileProgressMap[index] !== undefined" class="file-progress">
                   <div class="file-progress-bar">
@@ -172,7 +170,7 @@
                   :disabled="uploading"
                   title="框选人物主体"
                 >
-                  ✏️ 框选
+                  ⬜
                 </button>
                 <button @click="removeFile(index)" class="btn-remove" :disabled="uploading">
                   ✕
@@ -1831,6 +1829,30 @@ const handleLogout = () => {
 }
 
 .btn-remove:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-box-select {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  color: #666;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-box-select:hover:not(:disabled) {
+  background: #667eea;
+  color: white;
+}
+
+.btn-box-select:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
