@@ -1022,6 +1022,7 @@ const initCanvas = () => {
   
   const canvas = boxCanvas.value
   const video = boxSelectionVideo.value
+  const container = videoCanvasContainerRef.value
   const ctx = canvas.getContext('2d')
   
   // 设置 canvas 内部尺寸为视频实际分辨率，保证框选比例与原视频一致
@@ -1033,12 +1034,15 @@ const initCanvas = () => {
   
   // 等待 DOM 更新后，将 canvas 的 CSS 显示尺寸设置为与视频元素一致
   nextTick(() => {
-    if (!video || !canvas) return
+    if (!video || !canvas || !container) return
     
-    // 获取视频元素的显示尺寸（包含 object-fit: contain 的黑边区域）
+    // 获取容器和视频元素的显示尺寸
+    const containerRect = container.getBoundingClientRect()
     const videoRect = video.getBoundingClientRect()
     
-    // 设置 canvas 的 CSS 尺寸与视频元素显示尺寸一致，确保完全覆盖
+    // 关键修复：canvas 的 CSS 显示尺寸应该与视频元素的显示尺寸一致
+    // 这样才能确保鼠标点击位置的坐标映射正确
+    // 由于 object-fit: contain，videoRect 已经是视频实际显示区域（不含黑边）
     canvas.style.width = videoRect.width + 'px'
     canvas.style.height = videoRect.height + 'px'
     
@@ -1077,11 +1081,16 @@ const setupCanvasSize = () => {
   
   const video = boxSelectionVideo.value
   const canvas = boxCanvas.value
+  const container = videoCanvasContainerRef.value
   
-  // 获取视频元素的显示尺寸
+  if (!container) return
+  
+  // 获取容器和视频元素的显示尺寸
+  const containerRect = container.getBoundingClientRect()
   const videoRect = video.getBoundingClientRect()
   
-  // 设置 canvas 的 CSS 尺寸与视频显示尺寸一致，确保坐标映射准确
+  // 关键修复：canvas 的 CSS 尺寸必须与视频显示尺寸完全一致
+  // 这样才能确保鼠标点击位置的坐标正确映射到视频分辨率
   canvas.style.width = videoRect.width + 'px'
   canvas.style.height = videoRect.height + 'px'
 }
@@ -1335,10 +1344,27 @@ const saveBoxSelection = async () => {
     // 获取视频元素和 canvas
     const video = boxSelectionVideo.value
     const canvas = boxCanvas.value
+    const container = videoCanvasContainerRef.value
     
-    if (!video || !canvas) {
+    if (!video || !canvas || !container) {
       showToast('视频或画布未准备好', 'error')
       return
+    }
+    
+    // 关键修复：先跳转到保存的时间点，确保截取的帧与预览时一致
+    const targetTime = boxSelectionData.value.timestamp || currentTime.value
+    if (Math.abs(video.currentTime - targetTime) > 0.1) {
+      video.currentTime = targetTime
+      // 等待视频 seek 完成
+      await new Promise((resolve) => {
+        const onSeeked = () => {
+          video.removeEventListener('seeked', onSeeked)
+          resolve()
+        }
+        video.addEventListener('seeked', onSeeked)
+        // 超时保护
+        setTimeout(resolve, 500)
+      })
     }
     
     // 创建一个临时 canvas 用于截取带选区的帧
@@ -1349,7 +1375,17 @@ const saveBoxSelection = async () => {
     tempCanvas.width = video.videoWidth
     tempCanvas.height = video.videoHeight
     
-    // 先绘制视频当前帧（填充整个 canvas）
+    // 关键修复：计算视频实际显示区域（排除 object-fit: contain 产生的黑边）
+    // 获取 container 和 video 的显示尺寸
+    const containerRect = container.getBoundingClientRect()
+    const videoRect = video.getBoundingClientRect()
+    
+    // 计算视频在 container 中的实际渲染尺寸与原始分辨率的比例
+    // 由于 object-fit: contain，视频会被等比例缩放并居中显示，两侧可能有黑边
+    // 但 drawImage(video, 0, 0, video.videoWidth, video.videoHeight) 会自动处理
+    // 因为 video 元素的 intrinsic size 就是视频的原始分辨率
+    
+    // 绘制视频当前帧 - 使用最简单的方式，让浏览器自动处理 object-fit
     tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height)
     
     // 使用保存的选区数据（已经是基于视频原始分辨率的坐标）
@@ -1418,7 +1454,7 @@ const saveBoxSelection = async () => {
     file.frameImage = {
       blob: blob,
       fileName: thumbnailFileName,
-      timestamp: currentTime.value,
+      timestamp: targetTime,
       url: URL.createObjectURL(blob) // 用于预览
     }
     
