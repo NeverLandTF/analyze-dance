@@ -417,6 +417,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, inject, watch, nextTic
 import { useRouter } from 'vue-router'
 import { videoAPI, userAPI, analysisAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -498,6 +499,16 @@ const latestAnalysisIds = reactive({})
 
 // 计算属性
 const canUpload = computed(() => {
+  // 多人视频必须完成框选才能上传
+  if (videoType.value === 'multiple') {
+    // 检查所有文件是否都已完成框选
+    const allBoxed = selectedFiles.value.length > 0 && 
+                     selectedFiles.value.every((_, index) => boxSelectedMap.value[index])
+    if (!allBoxed) {
+      return false
+    }
+  }
+  
   // 普通用户不需要选择舞者（自动使用自己的 ID），只需要标题和文件
   if (!userStore.isAdmin) {
     return videoTitle.value && selectedFiles.value.length > 0
@@ -631,6 +642,15 @@ const getVideoUrl = (filePath) => {
 
 // 处理上传 - 支持批量上传，并行上传，每个文件显示独立进度条
 const handleUpload = async () => {
+  // 多人视频必须完成所有框选才能上传
+  if (videoType.value === 'multiple' && selectedFiles.value.length > 0) {
+    const unboxedFiles = selectedFiles.value.filter((_, index) => !boxSelectedMap.value[index])
+    if (unboxedFiles.length > 0) {
+      ElMessage.warning('请为所有视频完成人物框选后再上传')
+      return
+    }
+  }
+  
   if (!canUpload.value) return
   
   uploading.value = true
@@ -1327,19 +1347,29 @@ const saveBoxSelection = async () => {
     // 先绘制视频当前帧（填充整个 canvas）
     tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height)
     
+    // 获取 canvas 的显示尺寸（通过 getBoundingClientRect）
+    const canvasRect = canvas.getBoundingClientRect()
+    const canvasDisplayWidth = canvasRect.width
+    const canvasDisplayHeight = canvasRect.height
+    
     // 计算 canvas 显示尺寸与内部尺寸的缩放比例
-    const canvasDisplayWidth = parseFloat(canvas.style.width) || video.videoWidth
-    const canvasDisplayHeight = parseFloat(canvas.style.height) || video.videoHeight
     const scaleX = canvas.width / canvasDisplayWidth
     const scaleY = canvas.height / canvasDisplayHeight
     
     // 使用保存的选区数据（已经是基于 canvas 内部尺寸的坐标）
     const { x, y, width, height } = boxSelectionData.value
     
+    // 由于选区坐标已经是基于 canvas 内部尺寸（视频原始分辨率），直接使用
+    // 不需要再次缩放
+    const drawX = x
+    const drawY = y
+    const drawWidth = width
+    const drawHeight = height
+    
     // 绘制选区边框
     tempCtx.strokeStyle = '#00ff00'
     tempCtx.lineWidth = 2 * Math.max(scaleX, scaleY)
-    tempCtx.strokeRect(x, y, width, height)
+    tempCtx.strokeRect(drawX, drawY, drawWidth, drawHeight)
     
     // 绘制角落标记
     const cornerSize = 10 * Math.max(scaleX, scaleY)
@@ -1348,30 +1378,30 @@ const saveBoxSelection = async () => {
     
     // 左上角
     tempCtx.beginPath()
-    tempCtx.moveTo(x, y + cornerSize)
-    tempCtx.lineTo(x, y)
-    tempCtx.lineTo(x + cornerSize, y)
+    tempCtx.moveTo(drawX, drawY + cornerSize)
+    tempCtx.lineTo(drawX, drawY)
+    tempCtx.lineTo(drawX + cornerSize, drawY)
     tempCtx.stroke()
     
     // 右上角
     tempCtx.beginPath()
-    tempCtx.moveTo(x + width - cornerSize, y)
-    tempCtx.lineTo(x + width, y)
-    tempCtx.lineTo(x + width, y + cornerSize)
+    tempCtx.moveTo(drawX + drawWidth - cornerSize, drawY)
+    tempCtx.lineTo(drawX + drawWidth, drawY)
+    tempCtx.lineTo(drawX + drawWidth, drawY + cornerSize)
     tempCtx.stroke()
     
     // 左下角
     tempCtx.beginPath()
-    tempCtx.moveTo(x, y + height - cornerSize)
-    tempCtx.lineTo(x, y + height)
-    tempCtx.lineTo(x + cornerSize, y + height)
+    tempCtx.moveTo(drawX, drawY + drawHeight - cornerSize)
+    tempCtx.lineTo(drawX, drawY + drawHeight)
+    tempCtx.lineTo(drawX + cornerSize, drawY + drawHeight)
     tempCtx.stroke()
     
     // 右下角
     tempCtx.beginPath()
-    tempCtx.moveTo(x + width - cornerSize, y + height)
-    tempCtx.lineTo(x + width, y + height)
-    tempCtx.lineTo(x + width, y + height - cornerSize)
+    tempCtx.moveTo(drawX + drawWidth - cornerSize, drawY + drawHeight)
+    tempCtx.lineTo(drawX + drawWidth, drawY + drawHeight)
+    tempCtx.lineTo(drawX + drawWidth, drawY + drawHeight - cornerSize)
     tempCtx.stroke()
     
     // 将 canvas 转换为 Blob (PNG 格式)
