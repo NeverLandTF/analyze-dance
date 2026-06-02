@@ -147,7 +147,10 @@
             <button @click="triggerFileInput" class="btn-add-more" :disabled="uploading">
               ➕ 继续添加文件
             </button>
-            <div v-for="(file, index) in selectedFiles" :key="index" class="file-info" :class="{ 'box-selected-file': boxSelectedMap[index] }">
+            <div v-for="(file, index) in selectedFiles" :key="index" class="file-info" :class="{ 
+              'box-selected-file': boxSelectedMap[index],
+              'box-unselected-warning': videoType === 'multiple' && showUnboxedWarning && !boxSelectedMap[index]
+            }">
               <div class="file-icon">🎬</div>
               <div class="file-details">
                 <div class="file-name">{{ file.name }}</div>
@@ -487,6 +490,8 @@ const currentX = ref(0)
 const currentY = ref(0)
 const boxSelectionData = ref(null) // 保存的画框数据 {x, y, width, height, timestamp}
 const boxSelectedMap = ref({}) // 记录每个文件是否已完成框选 { [index]: true/false }
+const showUnboxedWarning = ref(false) // 是否显示未框选警告样式
+const unboxedFileIndices = ref([]) // 未框选的文件索引列表
 
 // 加载状态
 const loading = ref(false)
@@ -498,16 +503,6 @@ const latestAnalysisIds = reactive({})
 
 // 计算属性
 const canUpload = computed(() => {
-  // 多人视频必须完成框选才能上传
-  if (videoType.value === 'multiple') {
-    // 检查所有文件是否都已完成框选
-    const allBoxed = selectedFiles.value.length > 0 && 
-                     selectedFiles.value.every((_, index) => boxSelectedMap.value[index])
-    if (!allBoxed) {
-      return false
-    }
-  }
-  
   // 普通用户不需要选择舞者（自动使用自己的 ID），只需要标题和文件
   if (!userStore.isAdmin) {
     return videoTitle.value && selectedFiles.value.length > 0
@@ -643,9 +638,20 @@ const getVideoUrl = (filePath) => {
 const handleUpload = async () => {
   // 多人视频必须完成所有框选才能上传
   if (videoType.value === 'multiple' && selectedFiles.value.length > 0) {
-    const unboxedFiles = selectedFiles.value.filter((_, index) => !boxSelectedMap.value[index])
-    if (unboxedFiles.length > 0) {
+    const unboxedIndices = selectedFiles.value
+      .map((_, index) => index)
+      .filter(index => !boxSelectedMap.value[index])
+    
+    if (unboxedIndices.length > 0) {
       showToast('请为所有视频完成人物框选后再上传', 'warning')
+      // 标记未框选的文件需要显示红色边框（通过临时添加一个标记）
+      showUnboxedWarning.value = true
+      unboxedFileIndices.value = unboxedIndices
+      // 2 秒后清除警告样式
+      setTimeout(() => {
+        showUnboxedWarning.value = false
+        unboxedFileIndices.value = []
+      }, 2000)
       return
     }
   }
@@ -1827,6 +1833,20 @@ const handleLogout = () => {
   background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
   border: 2px solid #10b981;
   box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+
+/* 未框选警告样式（红色边框） */
+.file-info.box-unselected-warning {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border: 2px solid #ef4444;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
 }
 
 .file-actions {
