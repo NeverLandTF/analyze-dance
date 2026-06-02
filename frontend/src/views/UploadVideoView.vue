@@ -966,10 +966,8 @@ const openBoxSelection = (index) => {
   
   showBoxSelection.value = true
   
-  // 等待 DOM 更新后初始化 canvas
-  setTimeout(() => {
-    initCanvas()
-  }, 100)
+  // 等待视频加载完成后再初始化 canvas
+  // 使用 @loadedmetadata 事件确保视频元数据已加载
 }
 
 // 关闭框选弹窗
@@ -1027,7 +1025,7 @@ const initCanvas = () => {
     // 额外调用一次 setupCanvasSize 确保视频渲染完成后尺寸正确
     setTimeout(() => {
       setupCanvasSize()
-    }, 100)
+    }, 200)
   })
 }
 
@@ -2511,6 +2509,7 @@ const handleLogout = () => {
   display: flex;
   flex-direction: column;
   min-height: 0; /* 允许 modal 在 flex 布局中正确收缩 */
+  height: 90vh; /* 固定高度以更好地处理纵向视频 */
 }
 
 .box-selection-body {
@@ -2544,16 +2543,20 @@ const handleLogout = () => {
   border-radius: 8px;
   overflow: hidden;
   /* 移除固定宽高比，让容器自适应视频实际比例 */
-  min-height: 300px;
-  flex-shrink: 1; /* 允许容器在空间不足时收缩 */
+  flex: 1; /* 让容器占据剩余空间 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0; /* 允许容器收缩 */
 }
 
 .box-selection-video {
-  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
   height: auto;
   display: block;
   object-fit: contain;
-  max-height: calc(90vh - 250px); /* 限制最大高度，减去 header、instructions、controls、footer 的高度 */
 }
 
 .box-canvas {
