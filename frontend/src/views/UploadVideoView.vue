@@ -417,6 +417,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, inject, watch, nextTic
 import { useRouter } from 'vue-router'
 import { videoAPI, userAPI, analysisAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -498,6 +499,16 @@ const latestAnalysisIds = reactive({})
 
 // 计算属性
 const canUpload = computed(() => {
+  // 多人视频必须完成框选才能上传
+  if (videoType.value === 'multiple') {
+    // 检查所有文件是否都已完成框选
+    const allBoxed = selectedFiles.value.length > 0 && 
+                     selectedFiles.value.every((_, index) => boxSelectedMap.value[index])
+    if (!allBoxed) {
+      return false
+    }
+  }
+  
   // 普通用户不需要选择舞者（自动使用自己的 ID），只需要标题和文件
   if (!userStore.isAdmin) {
     return videoTitle.value && selectedFiles.value.length > 0
@@ -631,6 +642,15 @@ const getVideoUrl = (filePath) => {
 
 // 处理上传 - 支持批量上传，并行上传，每个文件显示独立进度条
 const handleUpload = async () => {
+  // 多人视频必须完成所有框选才能上传
+  if (videoType.value === 'multiple' && selectedFiles.value.length > 0) {
+    const unboxedFiles = selectedFiles.value.filter((_, index) => !boxSelectedMap.value[index])
+    if (unboxedFiles.length > 0) {
+      ElMessage.warning('请为所有视频完成人物框选后再上传')
+      return
+    }
+  }
+  
   if (!canUpload.value) return
   
   uploading.value = true
