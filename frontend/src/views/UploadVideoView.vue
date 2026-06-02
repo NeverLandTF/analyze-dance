@@ -1320,25 +1320,31 @@ const saveBoxSelection = async () => {
     const tempCanvas = document.createElement('canvas')
     const tempCtx = tempCanvas.getContext('2d')
     
-    // 设置 canvas 尺寸与视频一致
-    tempCanvas.width = canvas.width
-    tempCanvas.height = canvas.height
+    // 设置 canvas 尺寸与视频原始分辨率一致
+    tempCanvas.width = video.videoWidth
+    tempCanvas.height = video.videoHeight
     
-    // 先绘制视频当前帧
+    // 先绘制视频当前帧（填充整个 canvas）
     tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height)
     
-    // 再绘制选区边框（叠加在视频上）- 不再绘制半透明遮罩，只保留边框
+    // 计算 canvas 显示尺寸与内部尺寸的缩放比例
+    const canvasDisplayWidth = parseFloat(canvas.style.width) || video.videoWidth
+    const canvasDisplayHeight = parseFloat(canvas.style.height) || video.videoHeight
+    const scaleX = canvas.width / canvasDisplayWidth
+    const scaleY = canvas.height / canvasDisplayHeight
+    
+    // 使用保存的选区数据（已经是基于 canvas 内部尺寸的坐标）
     const { x, y, width, height } = boxSelectionData.value
     
     // 绘制选区边框
     tempCtx.strokeStyle = '#00ff00'
-    tempCtx.lineWidth = 2
+    tempCtx.lineWidth = 2 * Math.max(scaleX, scaleY)
     tempCtx.strokeRect(x, y, width, height)
     
     // 绘制角落标记
-    const cornerSize = 10
+    const cornerSize = 10 * Math.max(scaleX, scaleY)
     tempCtx.strokeStyle = '#00ff00'
-    tempCtx.lineWidth = 3
+    tempCtx.lineWidth = 3 * Math.max(scaleX, scaleY)
     
     // 左上角
     tempCtx.beginPath()
