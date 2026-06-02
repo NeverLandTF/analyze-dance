@@ -417,7 +417,6 @@ import { ref, reactive, computed, onMounted, onUnmounted, inject, watch, nextTic
 import { useRouter } from 'vue-router'
 import { videoAPI, userAPI, analysisAPI } from '../api/modules'
 import { useUserStore } from '../stores/user'
-import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -646,7 +645,7 @@ const handleUpload = async () => {
   if (videoType.value === 'multiple' && selectedFiles.value.length > 0) {
     const unboxedFiles = selectedFiles.value.filter((_, index) => !boxSelectedMap.value[index])
     if (unboxedFiles.length > 0) {
-      ElMessage.warning('请为所有视频完成人物框选后再上传')
+      showToast('请为所有视频完成人物框选后再上传', 'warning')
       return
     }
   }
