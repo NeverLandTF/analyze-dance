@@ -108,21 +108,6 @@
           </select>
         </div>
         
-        <!-- 视频类型：单人/多人 -->
-        <div class="form-group">
-          <label>视频类型</label>
-          <div class="video-type-options">
-            <label class="radio-option">
-              <input type="radio" v-model="videoType" value="single" :disabled="uploading" />
-              <span class="option-label">单人视频</span>
-            </label>
-            <label class="radio-option">
-              <input type="radio" v-model="videoType" value="multiple" :disabled="uploading" />
-              <span class="option-label">多人视频</span>
-            </label>
-          </div>
-        </div>
-        
         <!-- 文件上传区域 -->
         <div class="upload-area" @dragover.prevent @drop.prevent="handleDrop">
           <input 
@@ -468,7 +453,6 @@ const users = ref([])
 const selectedDancerId = ref(null)
 const videoTitle = ref('')
 const danceStyle = ref('')
-const videoType = ref('single') // 视频类型：single（单人）或 multiple（多人）- 保留作为默认值
 const fileVideoTypeMap = ref({}) // 记录每个文件的视频类型 { [index]: 'single' | 'multiple' }
 const selectedFiles = ref([])
 const fileInputRef = ref(null)
@@ -764,7 +748,6 @@ const resetForm = () => {
   }
   videoTitle.value = ''
   danceStyle.value = ''
-  videoType.value = 'single'  // 重置为单人视频（保留作为默认值）
   selectedFiles.value = []
   boxSelectedMap.value = {}  // 重置框选状态
   fileVideoTypeMap.value = {}  // 重置每个文件的视频类型
