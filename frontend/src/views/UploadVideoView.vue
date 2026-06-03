@@ -423,7 +423,7 @@
                   <button @click="backToStep1" class="btn-secondary">
                     ⬅️ 返回重新选择
                   </button>
-                  <button @click="saveBoxSelection" class="btn-primary" :disabled="!hasBoxSelection">
+                  <button @click="saveBoxSelection" class="btn-primary" :disabled="isSaveButtonDisabled">
                     💾 保存选中区域
                   </button>
                   <button @click="clearBoxSelection" class="btn-secondary" :disabled="!hasBoxSelection">
@@ -1181,6 +1181,11 @@ const onVideoLoaded = () => {
   
   // 更新时间显示
   updateTimeDisplay()
+  
+  // 初始化 canvas（用于在视频上绘制选区）
+  nextTick(() => {
+    initCanvas()
+  })
 }
 
 // 视频 seek 完成
@@ -1254,6 +1259,13 @@ const captureFrame = () => {
   }
   
   const video = boxSelectionVideo.value
+  
+  // 检查视频是否已加载足够的数据来截取帧
+  if (video.readyState < 2) {
+    showToast('视频加载中，请稍后', 'error')
+    return
+  }
+  
   const container = videoCanvasContainerRef.value
   
   // 创建临时 canvas 用于截取帧
@@ -1423,6 +1435,21 @@ const stopDrawing = () => {
   }
 }
 
+// 获取当前帧图片（用于第二步）
+const getCurrentFrameImage = () => {
+  if (!boxSelectionVideo.value) return null
+  
+  const video = boxSelectionVideo.value
+  const tempCanvas = document.createElement('canvas')
+  const tempCtx = tempCanvas.getContext('2d')
+  
+  tempCanvas.width = video.videoWidth
+  tempCanvas.height = video.videoHeight
+  tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height)
+  
+  return tempCanvas.toDataURL('image/png')
+}
+
 // 重绘选区
 const redrawBoxSelection = () => {
   if (!boxCanvas.value) return
@@ -1505,66 +1532,77 @@ const saveBoxSelection = async () => {
     // 等待 DOM 更新确保 canvas 已渲染
     await nextTick()
     
-    // 获取视频元素和 canvas
-    const video = boxSelectionVideo.value
+    // 获取必要的元素引用
     const canvas = boxCanvas.value
-    const container = videoCanvasContainerRef.value
+    
+    // 根据当前步骤获取不同的源（视频或图片）
+    let sourceElement = null
+    let sourceType = ''
+    
+    if (boxStep.value === 1) {
+      // 第一步：从视频截取
+      sourceElement = boxSelectionVideo.value
+      sourceType = 'video'
+      const container = videoCanvasContainerRef.value
+      
+      if (!sourceElement || !container) {
+        showToast('视频组件未准备好', 'error')
+        return
+      }
+    } else if (boxStep.value === 2) {
+      // 第二步：从截取的图片保存
+      sourceElement = frameImageRef.value
+      sourceType = 'image'
+      const container = imageCanvasContainerRef.value
+      
+      if (!canvas) {
+        showToast('画布未准备好，请重试', 'error')
+        return
+      }
+      
+      if (!sourceElement || !container) {
+        showToast('图片组件未准备好', 'error')
+        return
+      }
+    } else {
+      showToast('未知的操作步骤', 'error')
+      return
+    }
     
     // 如果 canvas 不存在，尝试重新初始化
     if (!canvas && boxStep.value === 2 && frameImageRef.value && imageCanvasContainerRef.value) {
       initCanvasForImage()
       await nextTick()
-    }
-    
-    // 再次检查必要元素
-    if (!canvas) {
-      showToast('画布未准备好，请重试', 'error')
-      return
-    }
-    
-    if (!video || !container) {
-      showToast('视频组件未准备好', 'error')
-      return
-    }
-    
-    // 关键修复：先跳转到保存的时间点，确保截取的帧与预览时一致
-    const targetTime = boxSelectionData.value.timestamp || currentTime.value
-    if (Math.abs(video.currentTime - targetTime) > 0.1) {
-      video.currentTime = targetTime
-      // 等待视频 seek 完成
-      await new Promise((resolve) => {
-        const onSeeked = () => {
-          video.removeEventListener('seeked', onSeeked)
-          resolve()
-        }
-        video.addEventListener('seeked', onSeeked)
-        // 超时保护
-        setTimeout(resolve, 500)
-      })
+      // 重新检查 canvas
+      if (!boxCanvas.value) {
+        showToast('画布初始化失败，请重试', 'error')
+        return
+      }
     }
     
     // 创建一个临时 canvas 用于截取带选区的帧
     const tempCanvas = document.createElement('canvas')
     const tempCtx = tempCanvas.getContext('2d')
     
-    // 设置 canvas 尺寸与视频原始分辨率一致
-    tempCanvas.width = video.videoWidth
-    tempCanvas.height = video.videoHeight
+    // 设置 canvas 尺寸与源（视频或图片）的原始分辨率一致
+    if (sourceType === 'video') {
+      const video = sourceElement
+      tempCanvas.width = video.videoWidth
+      tempCanvas.height = video.videoHeight
+      
+      // 绘制视频当前帧
+      tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height)
+    } else {
+      // 从已截取的图片创建
+      const img = sourceElement
+      tempCanvas.width = img.naturalWidth
+      tempCanvas.height = img.naturalHeight
+      
+      // 绘制图片
+      tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height)
+    }
     
-    // 关键修复：计算视频实际显示区域（排除 object-fit: contain 产生的黑边）
-    // 获取 container 和 video 的显示尺寸
-    const containerRect = container.getBoundingClientRect()
-    const videoRect = video.getBoundingClientRect()
-    
-    // 计算视频在 container 中的实际渲染尺寸与原始分辨率的比例
-    // 由于 object-fit: contain，视频会被等比例缩放并居中显示，两侧可能有黑边
-    // 但 drawImage(video, 0, 0, video.videoWidth, video.videoHeight) 会自动处理
-    // 因为 video 元素的 intrinsic size 就是视频的原始分辨率
-    
-    // 绘制视频当前帧 - 使用最简单的方式，让浏览器自动处理 object-fit
-    tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height)
-    
-    // 使用保存的选区数据（已经是基于视频原始分辨率的坐标）
+    // 使用保存的选区数据（已经是基于原始分辨率的坐标）
     const { x, y, width, height } = boxSelectionData.value
     
     // 直接使用坐标，因为它们已经是基于视频原始分辨率
@@ -1627,6 +1665,7 @@ const saveBoxSelection = async () => {
     const thumbnailFileName = file.name.replace(/\.[^/.]+$/, '') + '_frame.png'
     
     // 将截取的帧图片保存到文件对象中
+    const targetTime = boxStep.value === 1 ? currentTime.value : (boxSelectionData.value.timestamp || 0)
     file.frameImage = {
       blob: blob,
       fileName: thumbnailFileName,
@@ -1650,6 +1689,23 @@ const saveBoxSelection = async () => {
 // 计算属性：是否有选区
 const hasBoxSelection = computed(() => {
   return boxSelectionData.value !== null
+})
+
+// 计算属性：保存按钮是否可用（需要选区且对应步骤的组件已准备好）
+const isSaveButtonDisabled = computed(() => {
+  if (!boxSelectionData.value) return true
+  
+  // 第二步时，需要图片加载完成
+  if (boxStep.value === 2) {
+    return !frameImageRef.value || !imageCanvasContainerRef.value || !boxCanvas.value
+  }
+  
+  // 第一步时，需要视频加载完成
+  if (boxStep.value === 1) {
+    return !boxSelectionVideo.value || !videoCanvasContainerRef.value
+  }
+  
+  return false
 })
 
 // 计算属性：当前时间显示
