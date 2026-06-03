@@ -1448,19 +1448,6 @@ const redrawBoxSelection = () => {
   }
 }
 
-// 清除选区
-const clearBoxSelection = () => {
-  boxSelectionData.value = null
-  if (boxCanvas.value) {
-    const ctx = boxCanvas.value.getContext('2d')
-    ctx.clearRect(0, 0, boxCanvas.value.width, boxCanvas.value.height)
-  }
-  // 清除该文件的框选状态
-  if (currentBoxFileIndex.value >= 0 && boxSelectedMap.value[currentBoxFileIndex.value]) {
-    delete boxSelectedMap.value[currentBoxFileIndex.value]
-  }
-}
-
 // 保存选区 - 截取当前帧并保存为图片
 const saveBoxSelection = async () => {
   if (!boxSelectionData.value || currentBoxFileIndex.value < 0) {
