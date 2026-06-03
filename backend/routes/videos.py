@@ -7,10 +7,14 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 import uuid
 import os
+import logging
 
 from models import db, Video, Dancer
 from utils.auth import token_required
 from utils.file_utils import allowed_file, extract_video_thumbnail, get_video_duration
+
+# 配置日志
+logger = logging.getLogger(__name__)
 
 video_bp = Blueprint('videos', __name__, url_prefix='/api')
 
@@ -127,6 +131,34 @@ def upload_video_file():
     
     db.session.add(video)
     db.session.commit()
+    
+    # 如果是多人视频且保存了 frame_image_path，调用大模型生成主体人物描述
+    if video_type == 'multiple' and frame_image_path:
+        try:
+            from utils.ai_service import get_ai_service
+            ai_service = get_ai_service()
+            
+            # 构建图片的完整 URL
+            video_base_url = current_app.config.get('VIDEO_BASE_URL', os.environ.get('VIDEO_BASE_URL', ''))
+            if video_base_url:
+                image_url = f"{video_base_url.rstrip('/')}{frame_image_path}"
+            else:
+                # 使用相对路径，大模型服务需要能访问该路径
+                image_url = frame_image_path
+            
+            logger.info(f"[人物描述] 开始为视频 ID={video.id} 生成主体描述，图片 URL={image_url}")
+            
+            # 调用 AI 服务生成人物描述
+            subject_description = ai_service.generate_subject_description(image_url)
+            
+            # 更新视频记录，保存人物描述
+            video.subject_description = subject_description
+            db.session.commit()
+            
+            logger.info(f"[人物描述] 视频 ID={video.id} 主体描述生成成功")
+        except Exception as e:
+            logger.warning(f"[人物描述] 视频 ID={video.id} 生成失败：{str(e)}")
+            # 不阻断主流程，继续返回响应
     
     return jsonify({
         'message': 'Video uploaded successfully',
