@@ -69,9 +69,16 @@ def analyze_video():
         logger.info(f"[视频分析] 开始分析视频 ID={video.id}, 标题='{video.title}', URL={video_url}")
         
         # 调用 AI 分析服务，传入视频的完整 URL
+        # 如果是多人视频且存在主体描述，则传递给 AI 服务
+        subject_description = None
+        if video.video_type == 'multiple' and video.subject_description:
+            subject_description = video.subject_description
+            logger.info(f"[视频分析] 视频 ID={video.id} 为多人视频，使用主体描述进行针对性分析")
+        
         result = ai_service.analyze_video(
             video_url=video_url,
-            dance_style=video.dance_style or ""
+            dance_style=video.dance_style or "",
+            subject_description=subject_description
         )
         
         logger.info(f"[视频分析] 视频 ID={video.id} 使用【视频 URL 分析方案】成功")
