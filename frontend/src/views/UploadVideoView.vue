@@ -1298,6 +1298,49 @@ const backToStep1 = () => {
   }
 }
 
+// 图片加载完成
+const onFrameImageLoaded = () => {
+  // 等待 DOM 更新后初始化 canvas
+  nextTick(() => {
+    initCanvasForImage()
+  })
+}
+
+// 为图片框选初始化 Canvas
+const initCanvasForImage = () => {
+  if (!boxCanvas.value || !frameImageRef.value || !imageCanvasContainerRef.value) return
+  
+  const canvas = boxCanvas.value
+  const img = frameImageRef.value
+  const container = imageCanvasContainerRef.value
+  const ctx = canvas.getContext('2d')
+  
+  // 设置 canvas 内部尺寸为图片实际分辨率
+  canvas.width = img.naturalWidth || 640
+  canvas.height = img.naturalHeight || 360
+  
+  // 清空画布
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  
+  // 等待 DOM 更新后，将 canvas 的 CSS 显示尺寸设置为与图片元素一致
+  nextTick(() => {
+    if (!img || !canvas || !container) return
+    
+    // 获取容器和图片元素的显示尺寸
+    const containerRect = container.getBoundingClientRect()
+    const imgRect = img.getBoundingClientRect()
+    
+    // canvas 的 CSS 显示尺寸应该与图片元素的显示尺寸一致
+    canvas.style.width = imgRect.width + 'px'
+    canvas.style.height = imgRect.height + 'px'
+    
+    // 重新绘制已存在的选区（如果有）
+    if (boxSelectionData.value) {
+      redrawBoxSelection()
+    }
+  })
+}
+
 // 清除选区
 const clearBoxSelection = () => {
   boxSelectionData.value = null
@@ -2784,6 +2827,28 @@ const handleLogout = () => {
   align-items: center;
   justify-content: center;
   min-height: 0; /* 允许容器收缩 */
+}
+
+.image-canvas-container {
+  position: relative;
+  width: 100%;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
+
+.frame-image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  display: block;
+  object-fit: contain;
 }
 
 .box-selection-video {
