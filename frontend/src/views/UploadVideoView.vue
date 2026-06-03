@@ -1502,13 +1502,28 @@ const saveBoxSelection = async () => {
   if (!file) return
   
   try {
+    // 等待 DOM 更新确保 canvas 已渲染
+    await nextTick()
+    
     // 获取视频元素和 canvas
     const video = boxSelectionVideo.value
     const canvas = boxCanvas.value
     const container = videoCanvasContainerRef.value
     
-    if (!video || !canvas || !container) {
-      showToast('视频或画布未准备好', 'error')
+    // 如果 canvas 不存在，尝试重新初始化
+    if (!canvas && boxStep.value === 2 && frameImageRef.value && imageCanvasContainerRef.value) {
+      initCanvasForImage()
+      await nextTick()
+    }
+    
+    // 再次检查必要元素
+    if (!canvas) {
+      showToast('画布未准备好，请重试', 'error')
+      return
+    }
+    
+    if (!video || !container) {
+      showToast('视频组件未准备好', 'error')
       return
     }
     
