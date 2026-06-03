@@ -149,13 +149,24 @@
             </button>
             <div v-for="(file, index) in selectedFiles" :key="index" class="file-info" :class="{ 
               'box-selected-file': boxSelectedMap[index],
-              'box-unselected-warning': videoType === 'multiple' && showUnboxedWarning && !boxSelectedMap[index]
+              'box-unselected-warning': fileVideoTypeMap[index] === 'multiple' && showUnboxedWarning && !boxSelectedMap[index]
             }">
               <div class="file-icon">🎬</div>
               <div class="file-details">
                 <div class="file-name">{{ file.name }}</div>
                 <div class="file-size">{{ formatFileSize(file.size) }}</div>
                 <div class="file-title-preview">标题：{{ getAutoTitle(index) }}</div>
+                <!-- 单人/多人视频类型选择 -->
+                <div class="file-video-type-options">
+                  <label class="radio-option-small">
+                    <input type="radio" :checked="fileVideoTypeMap[index] === 'single'" @change="setFileVideoType(index, 'single')" :disabled="uploading" />
+                    <span class="option-label-small">单人</span>
+                  </label>
+                  <label class="radio-option-small">
+                    <input type="radio" :checked="fileVideoTypeMap[index] === 'multiple'" @change="setFileVideoType(index, 'multiple')" :disabled="uploading" />
+                    <span class="option-label-small">多人</span>
+                  </label>
+                </div>
                 <!-- 单个文件上传进度 -->
                 <div v-if="uploading && fileProgressMap[index] !== undefined" class="file-progress">
                   <div class="file-progress-bar">
@@ -165,9 +176,9 @@
                 </div>
               </div>
               <div class="file-actions">
-                <!-- 多人视频才显示框选按钮 -->
+                <!-- 仅当该视频选择为多人视频时显示框选按钮 -->
                 <button 
-                  v-if="videoType === 'multiple'" 
+                  v-if="fileVideoTypeMap[index] === 'multiple'" 
                   @click="openBoxSelection(index)" 
                   class="btn-box-select"
                   :class="{ 'box-selected': boxSelectedMap[index] }"
@@ -457,7 +468,8 @@ const users = ref([])
 const selectedDancerId = ref(null)
 const videoTitle = ref('')
 const danceStyle = ref('')
-const videoType = ref('single') // 视频类型：single（单人）或 multiple（多人）
+const videoType = ref('single') // 视频类型：single（单人）或 multiple（多人）- 保留作为默认值
+const fileVideoTypeMap = ref({}) // 记录每个文件的视频类型 { [index]: 'single' | 'multiple' }
 const selectedFiles = ref([])
 const fileInputRef = ref(null)
 
@@ -578,18 +590,49 @@ const validateAndSetFiles = (files) => {
   })
   
   if (validFiles.length > 0) {
+    const startIndex = selectedFiles.value.length
     selectedFiles.value = [...selectedFiles.value, ...validFiles]
     uploadError.value = ''
+    
+    // 为新添加的文件初始化视频类型为 'single'（默认单人）
+    validFiles.forEach((_, i) => {
+      fileVideoTypeMap.value[startIndex + i] = 'single'
+    })
+  }
+}
+
+// 设置单个文件的视频类型
+const setFileVideoType = (index, type) => {
+  fileVideoTypeMap.value[index] = type
+  // 如果从多人改为单人，清除框选状态
+  if (type === 'single' && boxSelectedMap.value[index]) {
+    delete boxSelectedMap.value[index]
   }
 }
 
 // 移除单个文件
 const removeFile = (index) => {
   selectedFiles.value.splice(index, 1)
-  // 同时清除框选状态
+  // 同时清除框选状态和视频类型
   if (boxSelectedMap.value[index]) {
     delete boxSelectedMap.value[index]
   }
+  if (fileVideoTypeMap.value[index]) {
+    delete fileVideoTypeMap.value[index]
+  }
+  // 重新索引剩余的 map
+  const newBoxMap = {}
+  const newVideoTypeMap = {}
+  selectedFiles.value.forEach((_, idx) => {
+    if (boxSelectedMap.value[idx + 1]) {
+      newBoxMap[idx] = boxSelectedMap.value[idx + 1]
+    }
+    if (fileVideoTypeMap.value[idx + 1]) {
+      newVideoTypeMap[idx] = fileVideoTypeMap.value[idx + 1]
+    }
+  })
+  boxSelectedMap.value = newBoxMap
+  fileVideoTypeMap.value = newVideoTypeMap
 }
 
 // 生成时间戳标题
@@ -636,24 +679,22 @@ const getVideoUrl = (filePath) => {
 
 // 处理上传 - 支持批量上传，并行上传，每个文件显示独立进度条
 const handleUpload = async () => {
-  // 多人视频必须完成所有框选才能上传
-  if (videoType.value === 'multiple' && selectedFiles.value.length > 0) {
-    const unboxedIndices = selectedFiles.value
-      .map((_, index) => index)
-      .filter(index => !boxSelectedMap.value[index])
-    
-    if (unboxedIndices.length > 0) {
-      showToast('请为所有视频完成人物框选后再上传', 'warning')
-      // 标记未框选的文件需要显示红色边框（通过临时添加一个标记）
-      showUnboxedWarning.value = true
-      unboxedFileIndices.value = unboxedIndices
-      // 2 秒后清除警告样式
-      setTimeout(() => {
-        showUnboxedWarning.value = false
-        unboxedFileIndices.value = []
-      }, 2000)
-      return
-    }
+  // 检查所有标记为多人视频的文件是否已完成框选
+  const unboxedIndices = selectedFiles.value
+    .map((_, index) => index)
+    .filter(index => fileVideoTypeMap.value[index] === 'multiple' && !boxSelectedMap.value[index])
+  
+  if (unboxedIndices.length > 0) {
+    showToast('请为所有多人视频完成人物框选后再上传', 'warning')
+    // 标记未框选的文件需要显示红色边框（通过临时添加一个标记）
+    showUnboxedWarning.value = true
+    unboxedFileIndices.value = unboxedIndices
+    // 2 秒后清除警告样式
+    setTimeout(() => {
+      showUnboxedWarning.value = false
+      unboxedFileIndices.value = []
+    }, 2000)
+    return
   }
   
   if (!canUpload.value) return
@@ -679,6 +720,9 @@ const handleUpload = async () => {
       // 获取框选的帧图片 blob（如果有）
       const frameImageBlob = file.frameImage ? file.frameImage.blob : null
       
+      // 获取该文件的视频类型（单人/多人），默认为 'single'
+      const fileVideoType = fileVideoTypeMap.value[index] || 'single'
+      
       return new Promise((resolve, reject) => {
         videoAPI.uploadVideoFile(
           file,
@@ -690,7 +734,7 @@ const handleUpload = async () => {
             // 更新该文件的进度
             fileProgressMap.value[index] = progress
           },
-          videoType.value,  // 传递视频类型（单人/多人）
+          fileVideoType,  // 传递该文件的视频类型（单人/多人）
           frameImageBlob    // 传递框选的帧图片（如果有）
         ).then(resolve).catch(reject)
       })
@@ -720,9 +764,10 @@ const resetForm = () => {
   }
   videoTitle.value = ''
   danceStyle.value = ''
-  videoType.value = 'single'  // 重置为单人视频
+  videoType.value = 'single'  // 重置为单人视频（保留作为默认值）
   selectedFiles.value = []
   boxSelectedMap.value = {}  // 重置框选状态
+  fileVideoTypeMap.value = {}  // 重置每个文件的视频类型
   uploadError.value = ''
   uploadedVideo.value = null
   
@@ -1845,7 +1890,7 @@ const handleLogout = () => {
 
 .file-info {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 15px;
   padding: 15px;
   background: #f9f9f9;
@@ -1871,7 +1916,13 @@ const handleLogout = () => {
 .file-actions {
   display: flex;
   gap: 10px;
-  align-items: center;
+  align-items: flex-start;
+  margin-top: 8px;
+}
+
+.file-details {
+  flex: 1;
+  min-width: 0;
 }
 
 .file-list {
@@ -1907,6 +1958,44 @@ const handleLogout = () => {
   font-size: 12px;
   color: #667eea;
   margin-top: 4px;
+  font-weight: 500;
+}
+
+/* 文件级别的视频类型选项样式 */
+.file-video-type-options {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.radio-option-small {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.radio-option-small:hover {
+  opacity: 0.8;
+}
+
+.radio-option-small input[type="radio"] {
+  margin-right: 4px;
+  accent-color: #667eea;
+  cursor: pointer;
+}
+
+.radio-option-small input[type="radio"]:disabled {
+  cursor: not-allowed;
+}
+
+.radio-option-small .option-label-small {
+  font-size: 12px;
+  color: #333;
   font-weight: 500;
 }
 
