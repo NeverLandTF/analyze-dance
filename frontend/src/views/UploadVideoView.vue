@@ -355,54 +355,82 @@
               <button @click="closeBoxSelection" class="btn-close">×</button>
             </div>
             <div class="modal-body box-selection-body">
-              <div class="box-selection-instructions">
-                <p>1. 拖动进度条选择合适帧</p>
-                <p>2. 在视频上点击并拖动绘制矩形框</p>
-                <p>3. 点击"保存选中区域"按钮</p>
+              <!-- 第一步：选择帧 -->
+              <div v-if="boxStep === 1" class="box-step-container">
+                <div class="box-selection-instructions">
+                  <h3>第一步：选择视频帧</h3>
+                  <p>1. 拖动进度条选择合适的帧</p>
+                  <p>2. 点击"截取帧图片"按钮</p>
+                </div>
+                <div class="video-canvas-container" ref="videoCanvasContainerRef">
+                  <video 
+                    ref="boxSelectionVideo"
+                    :src="currentBoxVideoUrl"
+                    class="box-selection-video"
+                    @loadedmetadata="onVideoLoaded"
+                    @seeked="onVideoSeeked"
+                  ></video>
+                </div>
+                <div class="video-controls">
+                  <button @click="togglePlayPause" class="btn-control">
+                    {{ isPlaying ? '⏸️ 暂停' : '▶️ 播放' }}
+                  </button>
+                  <input 
+                    type="range" 
+                    ref="videoProgress"
+                    min="0" 
+                    max="100" 
+                    value="0" 
+                    class="progress-slider"
+                    @input="onProgressChange"
+                  />
+                  <span class="time-display">{{ currentTimeDisplay }} / {{ durationDisplay }}</span>
+                </div>
+                <div class="step-actions">
+                  <button @click="captureFrame" class="btn-primary" :disabled="!videoLoaded">
+                    📸 截取帧图片
+                  </button>
+                  <button @click="closeBoxSelection" class="btn-secondary">
+                    取消
+                  </button>
+                </div>
               </div>
-              <div class="video-canvas-container" ref="videoCanvasContainerRef">
-                <video 
-                  ref="boxSelectionVideo"
-                  :src="currentBoxVideoUrl"
-                  class="box-selection-video"
-                  @loadedmetadata="onVideoLoaded"
-                  @seeked="onVideoSeeked"
-                ></video>
-                <canvas 
-                  ref="boxCanvas"
-                  class="box-canvas"
-                  @mousedown="startDrawing"
-                  @mousemove="draw"
-                  @mouseup="stopDrawing"
-                  @mouseleave="stopDrawing"
-                ></canvas>
+              
+              <!-- 第二步：框选图片 -->
+              <div v-if="boxStep === 2" class="box-step-container">
+                <div class="box-selection-instructions">
+                  <h3>第二步：框选人物主体</h3>
+                  <p>1. 在图片上点击并拖动绘制矩形框</p>
+                  <p>2. 点击"保存选中区域"按钮</p>
+                </div>
+                <div class="image-canvas-container" ref="imageCanvasContainerRef">
+                  <img 
+                    ref="frameImageRef"
+                    :src="capturedFrameImageUrl"
+                    class="frame-image"
+                    @load="onFrameImageLoaded"
+                  />
+                  <canvas 
+                    ref="boxCanvas"
+                    class="box-canvas"
+                    @mousedown="startDrawing"
+                    @mousemove="draw"
+                    @mouseup="stopDrawing"
+                    @mouseleave="stopDrawing"
+                  ></canvas>
+                </div>
+                <div class="step-actions">
+                  <button @click="backToStep1" class="btn-secondary">
+                    ⬅️ 返回重新选择
+                  </button>
+                  <button @click="saveBoxSelection" class="btn-primary" :disabled="!hasBoxSelection">
+                    💾 保存选中区域
+                  </button>
+                  <button @click="clearBoxSelection" class="btn-secondary" :disabled="!hasBoxSelection">
+                    🗑️ 清除选区
+                  </button>
+                </div>
               </div>
-              <div class="video-controls">
-                <button @click="togglePlayPause" class="btn-control">
-                  {{ isPlaying ? '⏸️ 暂停' : '▶️ 播放' }}
-                </button>
-                <input 
-                  type="range" 
-                  ref="videoProgress"
-                  min="0" 
-                  max="100" 
-                  value="0" 
-                  class="progress-slider"
-                  @input="onProgressChange"
-                />
-                <span class="time-display">{{ currentTimeDisplay }} / {{ durationDisplay }}</span>
-              </div>
-            </div>
-            <div class="modal-footer box-selection-footer">
-              <button @click="saveBoxSelection" class="btn-primary" :disabled="!hasBoxSelection">
-                💾 保存选中区域
-              </button>
-              <button @click="clearBoxSelection" class="btn-secondary" :disabled="!hasBoxSelection">
-                🗑️ 清除选区
-              </button>
-              <button @click="closeBoxSelection" class="btn-secondary">
-                取消
-              </button>
             </div>
           </div>
         </div>
@@ -475,6 +503,8 @@ const currentBoxVideoFile = ref(null)
 const boxSelectionVideo = ref(null)
 const boxCanvas = ref(null)
 const videoCanvasContainerRef = ref(null)
+const imageCanvasContainerRef = ref(null)
+const frameImageRef = ref(null)
 const videoProgress = ref(null)
 const isPlaying = ref(false)
 const currentTime = ref(0)
@@ -488,6 +518,12 @@ const boxSelectionData = ref(null) // 保存的画框数据 {x, y, width, height
 const boxSelectedMap = ref({}) // 记录每个文件是否已完成框选 { [index]: true/false }
 const showUnboxedWarning = ref(false) // 是否显示未框选警告样式
 const unboxedFileIndices = ref([]) // 未框选的文件索引列表
+
+// 两步框选流程相关
+const boxStep = ref(1) // 1: 选择帧，2: 框选图片
+const videoLoaded = ref(false) // 视频是否已加载完成
+const capturedFrameImageUrl = ref('') // 截取的帧图片 URL
+const capturedFrameBlob = ref(null) // 截取的帧图片 Blob
 
 // 加载状态
 const loading = ref(false)
@@ -1017,6 +1053,12 @@ const openBoxSelection = (index) => {
   boxSelectionData.value = null
   isDrawing.value = false
   
+  // 重置为第一步
+  boxStep.value = 1
+  videoLoaded.value = false
+  capturedFrameImageUrl.value = ''
+  capturedFrameBlob.value = null
+  
   showBoxSelection.value = true
   
   // 等待视频加载完成后再初始化 canvas
@@ -1037,6 +1079,12 @@ const closeBoxSelection = () => {
   if (currentBoxVideoUrl.value) {
     URL.revokeObjectURL(currentBoxVideoUrl.value)
     currentBoxVideoUrl.value = ''
+  }
+  
+  // 释放截取的帧图片 URL
+  if (capturedFrameImageUrl.value) {
+    URL.revokeObjectURL(capturedFrameImageUrl.value)
+    capturedFrameImageUrl.value = ''
   }
   
   currentBoxFileIndex.value = -1
@@ -1129,17 +1177,10 @@ const onVideoLoaded = () => {
   
   const video = boxSelectionVideo.value
   duration.value = video.duration || 0
-  
-  // 初始化 canvas（设置内部分辨率和 CSS 显示尺寸）
-  initCanvas()
+  videoLoaded.value = true
   
   // 更新时间显示
   updateTimeDisplay()
-  
-  // 额外调用一次 setupCanvasSize 确保视频渲染完成后尺寸正确
-  nextTick(() => {
-    setupCanvasSize()
-  })
 }
 
 // 视频 seek 完成
@@ -1147,9 +1188,6 @@ const onVideoSeeked = () => {
   if (!boxSelectionVideo.value) return
   currentTime.value = boxSelectionVideo.value.currentTime
   updateTimeDisplay()
-  
-  // 重新绘制 canvas（如果有已保存的选区）
-  redrawBoxSelection()
 }
 
 // 更新进度条
