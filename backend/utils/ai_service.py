@@ -62,13 +62,14 @@ class AIAnalysisService:
             base_url=self.api_base_url
         )
     
-    def analyze_video(self, video_url: str, dance_style: str = "") -> Dict[str, Any]:
+    def analyze_video(self, video_url: str, dance_style: str = "", subject_description: str = None) -> Dict[str, Any]:
         """
         分析舞蹈视频并返回结构化结果
         
         Args:
             video_url: 视频的完整 URL
             dance_style: 舞蹈风格（如 breaking, popping, locking 等）
+            subject_description: 人物主体描述（多人视频时使用，用于区分视频中的其他人）
             
         Returns:
             包含分析结果的字典，格式为：
@@ -81,7 +82,7 @@ class AIAnalysisService:
             raise ValueError("AI API Key 未配置，请设置 AI_API_KEY 环境变量")
         
         # 调用大模型 API 进行分析，直接传入视频 URL
-        response_data, usage_info = self._call_llm_api_with_video_url(video_url, dance_style)
+        response_data, usage_info = self._call_llm_api_with_video_url(video_url, dance_style, subject_description)
         
         # 解析并结构化返回结果
         analysis_result = self._parse_analysis_result(response_data)
@@ -253,13 +254,14 @@ class AIAnalysisService:
         
         return prompt
     
-    def _call_llm_api_with_video_url(self, video_url: str, dance_style: str) -> Tuple[str, Dict[str, Any]]:
+    def _call_llm_api_with_video_url(self, video_url: str, dance_style: str, subject_description: str = None) -> Tuple[str, Dict[str, Any]]:
         """
         调用大模型 API，直接传入视频 URL
         
         Args:
             video_url: 视频的完整 URL
             dance_style: 舞蹈风格
+            subject_description: 人物主体描述（多人视频时使用，用于区分视频中的其他人）
             
         Returns:
             (模型返回的文本内容，token 使用量信息)
@@ -278,8 +280,14 @@ class AIAnalysisService:
         
         # 添加文本提示
         style_info = f"，舞蹈风格为 {dance_style}" if dance_style else ""
+        
+        # 如果是多人视频且提供了主体描述，加入到提示词中
+        subject_info = ""
+        if subject_description:
+            subject_info = f"\n\n【重要】视频中有多人，以下是需要分析的主体人物的详细描述：\n{subject_description}\n\n请重点关注并仅分析上述描述的人物，忽略视频中的其他人。"
+        
         prompt_text = f"""你是一位专业的舞蹈分析专家。请分析这个舞蹈视频{style_info}。
-
+{subject_info}
 请从以下几个方面进行详细分析：
 1. 姿态检测 (pose_detection): 评估舞者的基本姿态、身体对齐情况
 2. 动作质量 (movement_quality): 包括节奏感、流畅度、力量控制、柔韧性等
