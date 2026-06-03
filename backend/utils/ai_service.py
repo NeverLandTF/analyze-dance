@@ -125,6 +125,67 @@ class AIAnalysisService:
             'usage': usage_info
         }
     
+    def generate_subject_description(self, image_url: str) -> str:
+        """
+        根据框选帧图片生成主体人物描述，用于区分视频中的其他人
+        
+        Args:
+            image_url: 图片的完整 URL 或路径
+            
+        Returns:
+            人物主体描述文本
+        """
+        if not self.api_key:
+            raise ValueError("AI API Key 未配置，请设置 AI_API_KEY 环境变量")
+        
+        # 构建消息内容，使用 image_url 格式传入图片
+        content_items = [
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": image_url
+                }
+            },
+            {
+                "type": "text",
+                "text": """请仔细观察这张图片，图中绿色方框框住的人物是需要描述的主体人物。
+
+你的任务是详细描述该主体人物的外貌特征，以便后续从多人视频中准确识别并区分出该人物与其他人物。
+
+请重点包括以下方面的描述：
+1. 性别、大致年龄
+2. 身材特征（高矮胖瘦等）
+3. 发型、发色
+4. 服装颜色和款式
+5. 其他显著特征（如配饰、纹身、鞋子等）
+
+要求：
+- 描述要具体、清晰，能够明显区分于其他人
+- 用简洁的中文描述，控制在 100-200 字以内
+- 直接返回描述内容，不要有其他解释性文字"""
+            }
+        ]
+        
+        try:
+            # 使用 OpenAI SDK 调用
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {
+                        'role': 'user',
+                        'content': content_items
+                    }
+                ],
+                temperature=0.7,
+                max_tokens=500
+            )
+            
+            # 返回模型响应内容
+            return response.choices[0].message.content.strip()
+                
+        except Exception as e:
+            raise Exception(f"调用 AI API 生成人物描述失败：{str(e)}")
+    
     def _build_analysis_prompt(self, video_description: str, dance_style: str) -> str:
         """构建分析提示词"""
         style_info = f"，舞蹈风格为 {dance_style}" if dance_style else ""
