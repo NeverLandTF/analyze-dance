@@ -1246,9 +1246,74 @@ const updateTimeDisplay = () => {
   durationDisplay.value = formatTime(duration.value)
 }
 
+// 截取帧图片
+const captureFrame = () => {
+  if (!boxSelectionVideo.value || !videoCanvasContainerRef.value) {
+    showToast('视频未准备好', 'error')
+    return
+  }
+  
+  const video = boxSelectionVideo.value
+  const container = videoCanvasContainerRef.value
+  
+  // 创建临时 canvas 用于截取帧
+  const tempCanvas = document.createElement('canvas')
+  const tempCtx = tempCanvas.getContext('2d')
+  
+  // 设置 canvas 尺寸与视频原始分辨率一致
+  tempCanvas.width = video.videoWidth
+  tempCanvas.height = video.videoHeight
+  
+  // 绘制视频当前帧
+  tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height)
+  
+  // 转换为图片 URL
+  const dataUrl = tempCanvas.toDataURL('image/png')
+  capturedFrameImageUrl.value = dataUrl
+  
+  // 同时保存 Blob 用于后续处理
+  tempCanvas.toBlob((blob) => {
+    capturedFrameBlob.value = blob
+  }, 'image/png')
+  
+  // 切换到第二步：框选图片
+  boxStep.value = 2
+  
+  // 等待 DOM 更新后初始化 canvas
+  nextTick(() => {
+    initCanvasForImage()
+  })
+  
+  showToast('帧图片已截取！', 'success')
+}
+
+// 返回第一步重新选择帧
+const backToStep1 = () => {
+  boxStep.value = 1
+  boxSelectionData.value = null
+  isDrawing.value = false
+  if (boxCanvas.value) {
+    const ctx = boxCanvas.value.getContext('2d')
+    ctx.clearRect(0, 0, boxCanvas.value.width, boxCanvas.value.height)
+  }
+}
+
+// 清除选区
+const clearBoxSelection = () => {
+  boxSelectionData.value = null
+  if (boxCanvas.value) {
+    const ctx = boxCanvas.value.getContext('2d')
+    ctx.clearRect(0, 0, boxCanvas.value.width, boxCanvas.value.height)
+  }
+  // 清除该文件的框选状态
+  if (currentBoxFileIndex.value >= 0 && boxSelectedMap.value[currentBoxFileIndex.value]) {
+    delete boxSelectedMap.value[currentBoxFileIndex.value]
+  }
+}
+
 // 开始绘制
 const startDrawing = (event) => {
-  if (!boxCanvas.value || !boxSelectionVideo.value) return
+  if (!boxCanvas.value) return
   
   isDrawing.value = true
   const rect = boxCanvas.value.getBoundingClientRect()
@@ -1267,7 +1332,7 @@ const startDrawing = (event) => {
 
 // 绘制矩形
 const draw = (event) => {
-  if (!isDrawing.value || !boxCanvas.value || !boxSelectionVideo.value) return
+  if (!isDrawing.value || !boxCanvas.value) return
   
   const rect = boxCanvas.value.getBoundingClientRect()
   const displayX = event.clientX - rect.left
