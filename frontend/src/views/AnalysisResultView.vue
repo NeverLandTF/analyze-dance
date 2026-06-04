@@ -349,6 +349,15 @@ const getDanceStyleName = (style) => {
     'hiphop': '嘻哈舞',
     'jazz': '爵士舞',
     'contemporary': '现代舞',
+    'choreography': '编舞',
+    'heels': '高跟鞋舞',
+    'waacking': '甩手舞',
+    'tutting': '手指舞',
+    'krump': '狂派舞',
+    'house': '浩室舞',
+    'urban': '都市舞',
+    'kpop': '韩舞',
+    'ballet': '芭蕾舞',
     'other': '其他'
   }
   return styleMap[style] || style || '未指定'
