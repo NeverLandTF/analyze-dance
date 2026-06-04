@@ -3005,21 +3005,17 @@ const handleLogout = () => {
   border-radius: 8px;
   /* 修复移动端框选显示问题：移除 overflow: hidden，避免框选框被裁剪 */
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block; /* 改为 block，让子元素绝对定位 */
   min-height: 300px;
   touch-action: none; /* 防止移动端触摸时触发滚动 */
   overflow: visible !important; /* 确保方框不会被裁剪 */
 }
 
 .frame-image {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
+  width: 100%;
   height: auto;
-  display: block;
-  object-fit: scale-down; /* 保持宽高比，避免黑色填充，让图片自然显示 */
+  display: block; /* 消除图片底部默认间隙 */
+  object-fit: contain; /* 保持宽高比 */
   position: relative;
   z-index: 1;
 }
