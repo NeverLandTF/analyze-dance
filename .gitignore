@@ -1,1 +1,1 @@
-Nothing should be ignored based on the provided file changes. The only modified file is a Vue component source file (`frontend/src/views/UploadVideoView.vue`), which is a legitimate source code file that should be tracked in version control. No build artifacts, dependencies, temporary files, or other ignorable content were detected in the changes.
+Nothing needs to be added to .gitignore since only Vue source files were modified and no build artifacts, dependencies, or temporary files are present in the changes.
