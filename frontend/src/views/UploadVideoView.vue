@@ -362,7 +362,7 @@
         </div>
 
         <!-- 框选人物主体弹窗 -->
-        <div v-if="showBoxSelection" class="modal-overlay" @click.self="closeBoxSelection">
+        <div v-if="showBoxSelection" class="modal-overlay">
           <div class="box-selection-modal" @click.stop>
             <div class="modal-header">
               <button @click="closeBoxSelection" class="btn-close">×</button>
@@ -3040,6 +3040,8 @@ const handleLogout = () => {
   min-height: 0; /* 允许 modal 在 flex 布局中正确收缩 */
   height: 90vh; /* 固定高度以更好地处理纵向视频 */
   overflow: visible !important; /* 确保方框不会被裁剪 */
+  justify-content: center;
+  align-items: center;
 }
 
 .box-step-container {
