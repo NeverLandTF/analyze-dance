@@ -129,20 +129,28 @@
           <div class="trend-chart">
             <div class="chart-container">
               <div 
-                v-for="(video, index) in progressData.videos" 
-                :key="video.id" 
+                v-for="(group, date) in groupedVideos" 
+                :key="date" 
                 class="chart-bar-wrapper"
               >
-                <div class="chart-bar">
+                <div class="chart-bars-group">
                   <div 
-                    class="chart-fill" 
-                    :style="{ height: getBarHeight(video.overall_score) + '%' }"
-                    :title="'得分：' + (video.overall_score || 0)"
-                  ></div>
+                    v-for="video in group.videos" 
+                    :key="video.id" 
+                    class="chart-bar-item"
+                  >
+                    <div class="chart-bar">
+                      <div 
+                        class="chart-fill" 
+                        :style="{ height: getBarHeight(video.overall_score) + '%' }"
+                        :title="'得分：' + (video.overall_score || 0)"
+                      ></div>
+                    </div>
+                  </div>
                 </div>
                 <div class="chart-label">
-                  <span class="date">{{ formatDate(video.upload_date) }}</span>
-                  <span class="score">{{ video.overall_score || 0 }}</span>
+                  <span class="date">{{ date }}</span>
+                  <span class="score-count" v-if="group.videos.length > 1">({{ group.videos.length }}条)</span>
                 </div>
               </div>
             </div>
@@ -432,6 +440,24 @@ const handleLogout = () => {
   userStore.logout()
   router.push('/login')
 }
+
+// 按日期分组视频（用于图表显示）
+const groupedVideos = computed(() => {
+  if (!progressData.value || !progressData.value.videos) return {}
+  
+  const groups = {}
+  progressData.value.videos.forEach(video => {
+    const dateKey = formatDate(video.upload_date)
+    if (!groups[dateKey]) {
+      groups[dateKey] = {
+        date: dateKey,
+        videos: []
+      }
+    }
+    groups[dateKey].videos.push(video)
+  })
+  return groups
+})
 </script>
 
 <style scoped>
@@ -828,7 +854,20 @@ const handleLogout = () => {
 
 .chart-bar-wrapper {
   flex: 1;
-  min-width: 60px;
+  min-width: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.chart-bars-group {
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.chart-bar-item {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -836,7 +875,7 @@ const handleLogout = () => {
 
 .chart-bar {
   width: 100%;
-  max-width: 50px;
+  max-width: 30px;
   height: 150px;
   background: #f0f0f0;
   border-radius: 8px 8px 0 0;
@@ -866,11 +905,11 @@ const handleLogout = () => {
   margin-bottom: 4px;
 }
 
-.chart-label .score {
+.chart-label .score-count {
   display: block;
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
+  font-size: 10px;
+  color: #667eea;
+  font-weight: 500;
 }
 
 .skills-section {
