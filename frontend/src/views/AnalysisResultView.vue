@@ -238,6 +238,7 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const showToast = inject('toast')
+const showConfirm = inject('confirm')
 
 // 用户菜单相关
 const showUserMenu = ref(false)
@@ -348,8 +349,16 @@ const reanalyze = async () => {
     return
   }
   
-  // 确认提示
-  if (!confirm('确定要重新分析此视频吗？这将更新当前的分析报告，不会生成新记录。')) {
+  // 确认提示 - 使用与其他页面一致的 confirm 组件
+  const confirmed = await showConfirm({
+    title: '重新分析确认',
+    message: '确定要重新分析此视频吗？这将更新当前的分析报告，不会生成新记录。',
+    confirmText: '重新分析',
+    cancelText: '取消',
+    type: 'warning'
+  })
+  
+  if (!confirmed) {
     return
   }
   
