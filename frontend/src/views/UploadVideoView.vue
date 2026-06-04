@@ -150,16 +150,36 @@
                 <div class="file-name">{{ file.name }}</div>
                 <div class="file-size">{{ formatFileSize(file.size) }}</div>
                 <div class="file-title-preview">标题：{{ getAutoTitle(index) }}</div>
-                <!-- 单人/多人视频类型选择 -->
-                <div class="file-video-type-options">
-                  <label class="radio-option-small">
-                    <input type="radio" :checked="fileVideoTypeMap[index] === 'single'" @change="setFileVideoType(index, 'single')" :disabled="uploading" />
-                    <span class="option-label-small">单人</span>
-                  </label>
-                  <label class="radio-option-small">
-                    <input type="radio" :checked="fileVideoTypeMap[index] === 'multiple'" @change="setFileVideoType(index, 'multiple')" :disabled="uploading" />
-                    <span class="option-label-small">多人</span>
-                  </label>
+                <!-- 单人/多人视频类型选择和操作按钮在同一行 -->
+                <div class="file-options-row">
+                  <!-- 单人/多人视频类型选择 -->
+                  <div class="file-video-type-options">
+                    <label class="radio-option-small">
+                      <input type="radio" :checked="fileVideoTypeMap[index] === 'single'" @change="setFileVideoType(index, 'single')" :disabled="uploading" />
+                      <span class="option-label-small">单人</span>
+                    </label>
+                    <label class="radio-option-small">
+                      <input type="radio" :checked="fileVideoTypeMap[index] === 'multiple'" @change="setFileVideoType(index, 'multiple')" :disabled="uploading" />
+                      <span class="option-label-small">多人</span>
+                    </label>
+                  </div>
+                  <!-- 操作按钮：框选和删除 -->
+                  <div class="file-actions-inline">
+                    <!-- 仅当该视频选择为多人视频时显示框选按钮 -->
+                    <button 
+                      v-if="fileVideoTypeMap[index] === 'multiple'" 
+                      @click="openBoxSelection(index)" 
+                      class="btn-box-select"
+                      :class="{ 'box-selected': boxSelectedMap[index] }"
+                      :disabled="uploading"
+                      :title="boxSelectedMap[index] ? '已框选' : '框选人物主体'"
+                    >
+                      {{ boxSelectedMap[index] ? '✅' : '⬜' }}
+                    </button>
+                    <button @click="removeFile(index)" class="btn-remove" :disabled="uploading">
+                      ✕
+                    </button>
+                  </div>
                 </div>
                 <!-- 单个文件上传进度 -->
                 <div v-if="uploading && fileProgressMap[index] !== undefined" class="file-progress">
@@ -168,22 +188,6 @@
                   </div>
                   <span class="file-progress-text">{{ fileProgressMap[index] }}%</span>
                 </div>
-              </div>
-              <div class="file-actions">
-                <!-- 仅当该视频选择为多人视频时显示框选按钮 -->
-                <button 
-                  v-if="fileVideoTypeMap[index] === 'multiple'" 
-                  @click="openBoxSelection(index)" 
-                  class="btn-box-select"
-                  :class="{ 'box-selected': boxSelectedMap[index] }"
-                  :disabled="uploading"
-                  :title="boxSelectedMap[index] ? '已框选' : '框选人物主体'"
-                >
-                  {{ boxSelectedMap[index] ? '✅' : '⬜' }}
-                </button>
-                <button @click="removeFile(index)" class="btn-remove" :disabled="uploading">
-                  ✕
-                </button>
               </div>
             </div>
           </div>
@@ -2195,13 +2199,6 @@ const handleLogout = () => {
   box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
 }
 
-.file-actions {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  margin-top: 8px;
-}
-
 .file-details {
   flex: 1;
   min-width: 0;
@@ -2243,14 +2240,29 @@ const handleLogout = () => {
   font-weight: 500;
 }
 
+/* 文件选项行：视频类型选择和操作按钮在同一行 */
+.file-options-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
 /* 文件级别的视频类型选项样式 */
 .file-video-type-options {
   display: flex;
   gap: 12px;
-  margin-top: 8px;
   padding: 6px 10px;
   background: #f0f0f0;
   border-radius: 4px;
+}
+
+/* 内联操作按钮容器 */
+.file-actions-inline {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .radio-option-small {
@@ -2614,6 +2626,20 @@ const handleLogout = () => {
 
   .file-details {
     text-align: center;
+  }
+
+  /* 移动端：文件选项行改为垂直布局 */
+  .file-options-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .file-video-type-options {
+    justify-content: center;
+  }
+
+  .file-actions-inline {
+    justify-content: center;
   }
 }
 
