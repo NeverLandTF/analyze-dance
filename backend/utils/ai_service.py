@@ -68,7 +68,7 @@ class AIAnalysisService:
         
         Args:
             video_url: 视频的完整 URL
-            dance_style: 舞蹈风格（如 breaking, popping, locking 等）
+            dance_style: 舞蹈风格（如 breaking, popping, locking, choreography, heels 等）
             subject_description: 人物主体描述（多人视频时使用，用于区分视频中的其他人）
             
         Returns:
@@ -99,7 +99,7 @@ class AIAnalysisService:
         
         Args:
             video_description: 视频描述或内容说明
-            dance_style: 舞蹈风格（如 breaking, popping, locking 等）
+            dance_style: 舞蹈风格（如 breaking, popping, locking, choreography, heels 等）
             
         Returns:
             包含分析结果的字典，格式为：
@@ -260,7 +260,7 @@ class AIAnalysisService:
         
         Args:
             video_url: 视频的完整 URL
-            dance_style: 舞蹈风格
+            dance_style: 舞蹈风格（如 breaking, popping, locking, choreography, heels 等）
             subject_description: 人物主体描述（多人视频时使用，用于区分视频中的其他人）
             
         Returns:
@@ -377,7 +377,7 @@ class AIAnalysisService:
         
         Args:
             frame_paths: 视频帧图片路径列表
-            dance_style: 舞蹈风格
+            dance_style: 舞蹈风格（如 breaking, popping, locking, choreography, heels 等）
             
         Returns:
             (模型返回的文本内容，token 使用量信息)

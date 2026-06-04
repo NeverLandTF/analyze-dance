@@ -104,6 +104,15 @@
             <option value="hiphop">Hip-hop (嘻哈舞)</option>
             <option value="jazz">Jazz (爵士舞)</option>
             <option value="contemporary">Contemporary (现代舞)</option>
+            <option value="choreography">Choreography (编舞)</option>
+            <option value="heels">Heels (高跟鞋舞)</option>
+            <option value="waacking">Waacking (甩手舞)</option>
+            <option value="tutting">Tutting (手指舞)</option>
+            <option value="krump">Krump (狂派舞)</option>
+            <option value="house">House (浩室舞)</option>
+            <option value="urban">Urban (都市舞)</option>
+            <option value="kpop">K-pop (韩舞)</option>
+            <option value="ballet">Ballet (芭蕾舞)</option>
             <option value="other">Other (其他)</option>
           </select>
         </div>
@@ -998,6 +1007,15 @@ const getDanceStyleName = (style) => {
     'hiphop': '嘻哈舞',
     'jazz': '爵士舞',
     'contemporary': '现代舞',
+    'choreography': '编舞',
+    'heels': '高跟鞋舞',
+    'waacking': '甩手舞',
+    'tutting': '手指舞',
+    'krump': '狂派舞',
+    'house': '浩室舞',
+    'urban': '都市舞',
+    'kpop': '韩舞',
+    'ballet': '芭蕾舞',
     'other': '其他'
   }
   return styleMap[style] || style
