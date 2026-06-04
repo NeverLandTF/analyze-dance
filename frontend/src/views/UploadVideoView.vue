@@ -147,9 +147,10 @@
             }">
               <div class="file-icon">🎬</div>
               <div class="file-details">
-                <div class="file-name">{{ file.name }}</div>
+                <div class="file-title-preview" @click="editFileTitle(index)" :title="'点击修改标题'">
+                  标题：{{ getFileTitle(index) }}
+                </div>
                 <div class="file-size">{{ formatFileSize(file.size) }}</div>
-                <div class="file-title-preview">标题：{{ getAutoTitle(index) }}</div>
                 <!-- 单人/多人视频类型选择和操作按钮在同一行 -->
                 <div class="file-options-row">
                   <!-- 单人/多人视频类型选择 -->
@@ -498,6 +499,7 @@ const selectedDancerId = ref(null)
 const videoTitle = ref('')
 const danceStyle = ref('')
 const fileVideoTypeMap = ref({}) // 记录每个文件的视频类型 { [index]: 'single' | 'multiple' }
+const fileTitleMap = ref({}) // 记录每个文件的自定义标题 { [index]: '自定义标题' }
 const selectedFiles = ref([])
 const fileInputRef = ref(null)
 
@@ -598,6 +600,15 @@ const handleFileSelect = (event) => {
   }
 }
 
+// 编辑文件标题
+const editFileTitle = (index) => {
+  const currentTitle = getFileTitle(index)
+  const newTitle = prompt('请输入视频标题：', currentTitle)
+  if (newTitle !== null) {
+    updateFileTitle(index, newTitle)
+  }
+}
+
 // 处理拖放
 const handleDrop = (event) => {
   const files = Array.from(event.dataTransfer.files)
@@ -646,19 +657,40 @@ const setFileVideoType = (index, type) => {
   }
 }
 
+// 更新文件标题
+const updateFileTitle = (index, newTitle) => {
+  if (newTitle && newTitle.trim()) {
+    fileTitleMap.value[index] = newTitle.trim()
+  } else {
+    delete fileTitleMap.value[index]
+  }
+}
+
+// 获取文件标题（优先使用自定义标题，否则使用自动生成标题）
+const getFileTitle = (index) => {
+  if (fileTitleMap.value[index]) {
+    return fileTitleMap.value[index]
+  }
+  return getAutoTitle(index)
+}
+
 // 移除单个文件
 const removeFile = (index) => {
   selectedFiles.value.splice(index, 1)
-  // 同时清除框选状态和视频类型
+  // 同时清除框选状态、视频类型和自定义标题
   if (boxSelectedMap.value[index]) {
     delete boxSelectedMap.value[index]
   }
   if (fileVideoTypeMap.value[index]) {
     delete fileVideoTypeMap.value[index]
   }
+  if (fileTitleMap.value[index]) {
+    delete fileTitleMap.value[index]
+  }
   // 重新索引剩余的 map
   const newBoxMap = {}
   const newVideoTypeMap = {}
+  const newTitleMap = {}
   selectedFiles.value.forEach((_, idx) => {
     if (boxSelectedMap.value[idx + 1]) {
       newBoxMap[idx] = boxSelectedMap.value[idx + 1]
@@ -666,9 +698,13 @@ const removeFile = (index) => {
     if (fileVideoTypeMap.value[idx + 1]) {
       newVideoTypeMap[idx] = fileVideoTypeMap.value[idx + 1]
     }
+    if (fileTitleMap.value[idx + 1]) {
+      newTitleMap[idx] = fileTitleMap.value[idx + 1]
+    }
   })
   boxSelectedMap.value = newBoxMap
   fileVideoTypeMap.value = newVideoTypeMap
+  fileTitleMap.value = newTitleMap
 }
 
 // 生成时间戳标题
@@ -745,8 +781,8 @@ const handleUpload = async () => {
     
     // 并行上传所有文件
     const uploadPromises = selectedFiles.value.map((file, index) => {
-      // 自动生成带索引的标题
-      const autoTitle = getAutoTitle(index)
+      // 获取标题：优先使用自定义标题，否则使用自动生成标题
+      const finalTitle = getFileTitle(index)
       // 普通用户不需要传递 dancer_id，后端会自动获取默认舞者
       const dancerIdParam = userStore.isAdmin ? selectedDancerId.value : null
       
@@ -764,7 +800,7 @@ const handleUpload = async () => {
           file,
           userStore.userId,
           dancerIdParam,
-          autoTitle,
+          finalTitle,
           danceStyle.value,
           (progress) => {
             // 更新该文件的进度
@@ -803,6 +839,7 @@ const resetForm = () => {
   selectedFiles.value = []
   boxSelectedMap.value = {}  // 重置框选状态
   fileVideoTypeMap.value = {}  // 重置每个文件的视频类型
+  fileTitleMap.value = {}  // 重置每个文件的自定义标题
   uploadError.value = ''
   uploadedVideo.value = null
   
@@ -2234,10 +2271,18 @@ const handleLogout = () => {
 }
 
 .file-title-preview {
-  font-size: 12px;
+  font-size: 14px;
   color: #667eea;
-  margin-top: 4px;
-  font-weight: 500;
+  font-weight: 600;
+  margin-bottom: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-block;
+}
+
+.file-title-preview:hover {
+  color: #764ba2;
+  text-decoration: underline;
 }
 
 /* 文件选项行：视频类型选择和操作按钮在同一行 */
@@ -2325,11 +2370,13 @@ const handleLogout = () => {
 
 .file-icon {
   font-size: 36px;
+  flex-shrink: 0;
 }
 
 .file-details {
   flex: 1;
   text-align: left;
+  min-width: 0;
 }
 
 .file-name {
@@ -2620,12 +2667,18 @@ const handleLogout = () => {
   }
 
   .file-info {
-    flex-direction: column;
-    text-align: center;
+    flex-direction: row;
+    text-align: left;
+    align-items: flex-start;
+  }
+
+  .file-icon {
+    flex-shrink: 0;
   }
 
   .file-details {
-    text-align: center;
+    text-align: left;
+    min-width: 0;
   }
 
   /* 移动端：文件选项行保持水平布局，不改为垂直布局 */
