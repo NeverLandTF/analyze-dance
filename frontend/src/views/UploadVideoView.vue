@@ -368,9 +368,7 @@
               <h2>框选人物主体 - {{ selectedFiles[currentBoxFileIndex]?.name }}</h2>
               <button @click="closeBoxSelection" class="btn-close">×</button>
             </div>
-            <div class="modal-body box-selection-body">
-              <!-- 第一步：选择帧 -->
-              <div v-if="boxStep === 1" class="box-step-container">
+            <div class="box-step-container">
                 <div class="box-selection-instructions">
                   <h3>第一步：选择视频帧</h3>
                   <p>1. 拖动进度条选择合适的帧</p>
@@ -411,7 +409,7 @@
               </div>
               
               <!-- 第二步：框选图片 -->
-              <div v-if="boxStep === 2" class="box-step-container">
+              <div v-if="boxStep === 2" class="box-step-inner">
                 <div class="box-selection-instructions">
                   <h3>第二步：框选人物主体</h3>
                   <p>1. 在图片上点击并拖动绘制矩形框</p>
@@ -3038,16 +3036,20 @@ const handleLogout = () => {
   overflow: visible !important; /* 确保方框不会被裁剪 */
 }
 
-.box-selection-body {
+.box-step-container {
   padding: 20px;
   background: #1a1a1a;
   flex: 1;
   overflow-y: auto;
-  overflow-x: visible; /* 允许横向内容溢出显示 */
+  overflow-x: visible;
   display: flex;
   flex-direction: column;
   gap: 15px;
-  min-height: 0; /* 允许 flex 子项收缩以适应容器 */
+  min-height: 0;
+}
+
+.box-step-inner {
+  display: contents; /* 让内部元素直接成为 box-step-container 的子元素 */
 }
 
 .box-selection-instructions {
