@@ -3019,7 +3019,7 @@ const handleLogout = () => {
   width: auto;
   height: auto;
   display: block;
-  object-fit: contain; /* 保持宽高比，但容器背景透明，不会有黑边视觉干扰 */
+  object-fit: scale-down; /* 保持宽高比，避免黑色填充，让图片自然显示 */
   position: relative;
   z-index: 1;
 }
