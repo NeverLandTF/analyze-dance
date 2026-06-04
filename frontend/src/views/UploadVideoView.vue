@@ -2966,7 +2966,7 @@ const handleLogout = () => {
   overflow-x: visible; /* 允许横向内容溢出显示 */
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 10px; /* 减小间距，使布局更紧凑 */
   min-height: 0; /* 允许 flex 子项收缩以适应容器 */
 }
 
@@ -2981,6 +2981,15 @@ const handleLogout = () => {
 .box-selection-instructions p {
   margin: 5px 0;
   font-size: 14px;
+}
+
+/* 框选步骤容器 - 紧凑布局 */
+.box-step-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* 步骤内组件间距 */
+  flex: 1;
+  min-height: 0;
 }
 
 .video-canvas-container {
@@ -3008,7 +3017,7 @@ const handleLogout = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 300px;
+  min-height: 0; /* 移除固定高度，让容器自适应内容 */
   touch-action: none; /* 防止移动端触摸时触发滚动 */
   overflow: visible !important; /* 确保方框不会被裁剪 */
 }
