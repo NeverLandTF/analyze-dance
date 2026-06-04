@@ -1162,11 +1162,31 @@ const handleLogout = () => {
   
   .date-range-inputs {
     width: 100%;
+    flex-wrap: wrap;
   }
   
-  .date-input {
+  .date-input-wrapper {
     flex: 1;
-    min-width: 140px;
+    min-width: unset;
+    width: calc(50% - 20px);
+  }
+  
+  .date-input-wrapper input[type="date"] {
+    width: 100%;
+    font-size: 13px;
+    padding: 6px 8px;
+  }
+  
+  .date-separator {
+    display: none;
+  }
+  
+  .btn-apply-date,
+  .btn-clear-date {
+    flex: 1;
+    width: calc(50% - 10px);
+    font-size: 13px;
+    padding: 6px 12px;
   }
 }
 
@@ -1555,6 +1575,13 @@ const handleLogout = () => {
 
   .nav-brand {
     font-size: 20px;
+    white-space: nowrap;
+  }
+
+  .nav-links {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
   }
 
   .main-content {
@@ -1601,12 +1628,12 @@ const handleLogout = () => {
   }
 
   .nav-brand {
-    font-size: 18px;
+    font-size: 16px;
   }
 
   .nav-link {
-    padding: 6px 12px;
-    font-size: 14px;
+    padding: 6px 10px;
+    font-size: 13px;
   }
 
   .main-content {
