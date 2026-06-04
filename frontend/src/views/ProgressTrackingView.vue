@@ -888,9 +888,10 @@ const groupedVideos = computed(() => {
   bottom: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(to top, #667eea 0%, #764ba2 100%);
   border-radius: 8px 8px 0 0;
   transition: height 0.3s ease;
+  min-height: 2px;
 }
 
 .chart-label {
