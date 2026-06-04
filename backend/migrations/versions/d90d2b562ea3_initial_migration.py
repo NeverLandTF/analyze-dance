@@ -51,7 +51,7 @@ def upgrade():
     sa.Column('thumbnail_url', sa.String(length=255), nullable=True, comment='缩略图 URL'),
     sa.Column('duration', sa.Float(), nullable=True, comment='视频时长（秒）'),
     sa.Column('upload_date', sa.DateTime(), nullable=False, comment='上传时间 (CST/UTC+8)'),
-    sa.Column('dance_style', sa.String(length=50), nullable=True, comment='舞蹈风格：breaking, popping, locking 等'),
+    sa.Column('dance_style', sa.String(length=50), nullable=True, comment='舞蹈风格：breaking, popping, locking, choreography, heels 等'),
     sa.ForeignKeyConstraint(['dancer_id'], ['dancers.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
