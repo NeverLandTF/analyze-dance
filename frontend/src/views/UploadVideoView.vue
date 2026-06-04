@@ -2628,18 +2628,19 @@ const handleLogout = () => {
     text-align: center;
   }
 
-  /* 移动端：文件选项行改为垂直布局 */
+  /* 移动端：文件选项行保持水平布局，不改为垂直布局 */
   .file-options-row {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
   }
 
   .file-video-type-options {
-    justify-content: center;
+    justify-content: flex-start;
   }
 
   .file-actions-inline {
-    justify-content: center;
+    justify-content: flex-end;
   }
 }
 
