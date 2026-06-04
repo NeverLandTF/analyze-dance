@@ -2986,13 +2986,13 @@ const handleLogout = () => {
   width: 100%;
   background: #000;
   border-radius: 8px;
-  overflow: hidden;
-  /* 移除固定宽高比，让容器自适应视频实际比例 */
+  /* 修复移动端框选显示问题：移除 overflow: hidden，避免框选框被裁剪 */
   flex: 1; /* 让容器占据剩余空间 */
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 0; /* 允许容器收缩 */
+  touch-action: none; /* 防止移动端触摸时触发滚动 */
 }
 
 .image-canvas-container {
@@ -3000,12 +3000,13 @@ const handleLogout = () => {
   width: 100%;
   background: #000;
   border-radius: 8px;
-  overflow: hidden;
+  /* 修复移动端框选显示问题：移除 overflow: hidden，避免框选框被裁剪 */
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 300px;
+  touch-action: none; /* 防止移动端触摸时触发滚动 */
 }
 
 .frame-image {
