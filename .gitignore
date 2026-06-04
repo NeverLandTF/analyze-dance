@@ -1,1 +1,56 @@
-Nothing should be ignored based on the provided file changes, as only a Vue source file was modified and no build artifacts, dependencies, or temporary files were included in the changes.
+```
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+build/
+*.js.map
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Testing
+.coverage
+coverage/
+htmlcov/
+.nyc_output/
+istanbul/
+.mocha-grunt-cov/
+grunt-tmp/
+
+# IDE
+*.swp
+*.swo
+*~
+```

@@ -150,7 +150,6 @@
                 </div>
                 <div class="chart-label">
                   <span class="date">{{ date }}</span>
-                  <span class="score-count" v-if="group.videos.length > 1">({{ group.videos.length }}条)</span>
                 </div>
               </div>
             </div>
@@ -871,11 +870,11 @@ const groupedVideos = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  min-width: 30px;
 }
 
 .chart-bar {
-  width: 100%;
-  max-width: 30px;
+  width: 30px;
   height: 150px;
   background: #f0f0f0;
   border-radius: 8px 8px 0 0;
@@ -904,13 +903,6 @@ const groupedVideos = computed(() => {
   font-size: 12px;
   color: #999;
   margin-bottom: 4px;
-}
-
-.chart-label .score-count {
-  display: block;
-  font-size: 10px;
-  color: #667eea;
-  font-weight: 500;
 }
 
 .skills-section {
@@ -1111,8 +1103,12 @@ const groupedVideos = computed(() => {
     gap: 10px;
   }
 
+  .chart-bar-item {
+    min-width: 40px;
+  }
+
   .chart-bar {
-    max-width: 40px;
+    width: 40px;
   }
 }
 

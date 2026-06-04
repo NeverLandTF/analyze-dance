@@ -1145,18 +1145,18 @@ const handleScroll = (event) => {
 }
 
 .scroll-container::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(200, 200, 200, 0.3);
   border-radius: 4px;
 }
 
 .scroll-container::-webkit-scrollbar-thumb {
-  background: rgba(170, 59, 255, 0.5);
+  background: rgba(180, 180, 180, 0.6);
   border-radius: 4px;
   transition: background 0.3s;
 }
 
 .scroll-container::-webkit-scrollbar-thumb:hover {
-  background: rgba(170, 59, 255, 0.8);
+  background: rgba(160, 160, 160, 0.8);
 }
 
 /* 加载更多提示样式 */
