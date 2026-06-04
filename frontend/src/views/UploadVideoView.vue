@@ -2986,7 +2986,7 @@ const handleLogout = () => {
 .video-canvas-container {
   position: relative;
   width: 100%;
-  background: #000;
+  background: transparent; /* 移除黑色背景，让视频自然显示 */
   border-radius: 8px;
   /* 修复移动端框选显示问题：移除 overflow: hidden，避免框选框被裁剪 */
   flex: 1; /* 让容器占据剩余空间 */
@@ -3001,7 +3001,7 @@ const handleLogout = () => {
 .image-canvas-container {
   position: relative;
   width: 100%;
-  background: #000;
+  background: transparent; /* 移除黑色背景，让图片自然显示 */
   border-radius: 8px;
   /* 修复移动端框选显示问题：移除 overflow: hidden，避免框选框被裁剪 */
   flex: 1;
@@ -3019,7 +3019,7 @@ const handleLogout = () => {
   width: auto;
   height: auto;
   display: block;
-  object-fit: contain;
+  object-fit: contain; /* 保持宽高比，但容器背景透明，不会有黑边视觉干扰 */
   position: relative;
   z-index: 1;
 }
@@ -3030,9 +3030,11 @@ const handleLogout = () => {
   width: auto;
   height: auto;
   display: block;
-  object-fit: contain;
+  object-fit: contain; /* 保持宽高比，但容器背景透明，不会有黑边视觉干扰 */
   position: relative;
   z-index: 1;
+  background: #000; /* 仅在视频元素本身设置黑色背景，保证视频正常显示 */
+  border-radius: 8px;
 }
 
 .box-canvas {
