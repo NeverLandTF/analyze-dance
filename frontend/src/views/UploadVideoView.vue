@@ -2955,6 +2955,7 @@ const handleLogout = () => {
   flex-direction: column;
   min-height: 0; /* 允许 modal 在 flex 布局中正确收缩 */
   height: 90vh; /* 固定高度以更好地处理纵向视频 */
+  overflow: visible !important; /* 确保方框不会被裁剪 */
 }
 
 .box-selection-body {
@@ -2962,6 +2963,7 @@ const handleLogout = () => {
   background: #1a1a1a;
   flex: 1;
   overflow-y: auto;
+  overflow-x: visible; /* 允许横向内容溢出显示 */
   display: flex;
   flex-direction: column;
   gap: 15px;
@@ -2993,6 +2995,7 @@ const handleLogout = () => {
   justify-content: center;
   min-height: 0; /* 允许容器收缩 */
   touch-action: none; /* 防止移动端触摸时触发滚动 */
+  overflow: visible !important; /* 确保方框不会被裁剪 */
 }
 
 .image-canvas-container {
@@ -3007,7 +3010,7 @@ const handleLogout = () => {
   justify-content: center;
   min-height: 300px;
   touch-action: none; /* 防止移动端触摸时触发滚动 */
-  overflow: visible; /* 确保方框不会被裁剪 */
+  overflow: visible !important; /* 确保方框不会被裁剪 */
 }
 
 .frame-image {
@@ -3017,6 +3020,8 @@ const handleLogout = () => {
   height: auto;
   display: block;
   object-fit: contain;
+  position: relative;
+  z-index: 1;
 }
 
 .box-selection-video {
@@ -3026,6 +3031,8 @@ const handleLogout = () => {
   height: auto;
   display: block;
   object-fit: contain;
+  position: relative;
+  z-index: 1;
 }
 
 .box-canvas {
@@ -3040,7 +3047,8 @@ const handleLogout = () => {
   pointer-events: auto;
   /* Canvas 内部尺寸由 JS 设置为视频实际分辨率 */
   touch-action: none; /* 防止移动端触摸时触发滚动 */
-  overflow: visible; /* 确保绘制的方框不会被裁剪 */
+  overflow: visible !important; /* 确保绘制的方框不会被裁剪 */
+  z-index: 2; /* 确保 canvas 在图片/视频之上 */
 }
 
 .video-controls {

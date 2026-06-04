@@ -1,1 +1,1 @@
-Nothing needs to be added to the .gitignore file based on the provided file changes. The modification of 'frontend/src/views/UploadVideoView.vue' does not require any new ignore rules.
+Nothing should be ignored based on the provided file changes. The only modified file is a Vue component (`frontend/src/views/UploadVideoView.vue`), which is a source code file and should not be added to .gitignore.
