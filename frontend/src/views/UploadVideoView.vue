@@ -3109,6 +3109,7 @@ const handleLogout = () => {
   min-width: 100px;
   text-align: right;
   font-family: monospace;
+  white-space: nowrap; /* 防止时间显示换行 */
 }
 
 .box-selection-footer {
