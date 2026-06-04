@@ -1122,6 +1122,9 @@ const openBoxSelection = (index) => {
   
   showBoxSelection.value = true
   
+  // 禁止背景页面滚动
+  document.body.style.overflow = 'hidden'
+  
   // 等待视频加载完成后再初始化 canvas
   // 使用 @loadedmetadata 事件确保视频元数据已加载
 }
@@ -1129,6 +1132,9 @@ const openBoxSelection = (index) => {
 // 关闭框选弹窗
 const closeBoxSelection = () => {
   showBoxSelection.value = false
+  
+  // 恢复背景页面滚动
+  document.body.style.overflow = ''
   
   // 停止视频播放
   if (boxSelectionVideo.value) {
@@ -2955,7 +2961,6 @@ const handleLogout = () => {
   justify-content: center;
   align-items: center;
   padding: 15px 20px;
-  border-bottom: 1px solid #eee;
 }
 
 .modal-header h2 {
@@ -3286,25 +3291,25 @@ const handleLogout = () => {
   to { transform: rotate(360deg); }
 }
 
-/* 统一滚动条样式 - 与页面深色主题保持一致 */
+/* 统一滚动条样式 - 使用淡灰色 */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(200, 200, 200, 0.3);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(170, 59, 255, 0.5);
+  background: rgba(180, 180, 180, 0.6);
   border-radius: 4px;
   transition: background 0.3s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(170, 59, 255, 0.8);
+  background: rgba(160, 160, 160, 0.8);
 }
 
 ::-webkit-scrollbar-corner {
