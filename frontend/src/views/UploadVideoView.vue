@@ -365,7 +365,6 @@
         <div v-if="showBoxSelection" class="modal-overlay" @click.self="closeBoxSelection">
           <div class="box-selection-modal" @click.stop>
             <div class="modal-header">
-              <h2>框选人物主体 - {{ selectedFiles[currentBoxFileIndex]?.name }}</h2>
               <button @click="closeBoxSelection" class="btn-close">×</button>
             </div>
             <div class="box-step-container">
@@ -2953,7 +2952,7 @@ const handleLogout = () => {
 
 .modal-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   padding: 15px 20px;
   border-bottom: 1px solid #eee;
@@ -3039,15 +3038,17 @@ const handleLogout = () => {
 }
 
 .box-step-container {
-  padding: 20px;
-  background: #1a1a1a;
+  padding: 24px;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
   flex: 1;
   overflow-y: auto;
   overflow-x: visible;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 20px;
   min-height: 0;
+  border-radius: 12px;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .box-step-inner {
@@ -3283,5 +3284,30 @@ const handleLogout = () => {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* 统一滚动条样式 - 与页面深色主题保持一致 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(170, 59, 255, 0.5);
+  border-radius: 4px;
+  transition: background 0.3s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(170, 59, 255, 0.8);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 </style>
