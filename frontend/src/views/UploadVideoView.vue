@@ -3004,9 +3004,9 @@ const handleLogout = () => {
   background: transparent; /* 移除黑色背景，让图片自然显示 */
   border-radius: 8px;
   /* 修复移动端框选显示问题：移除 overflow: hidden，避免框选框被裁剪 */
-  flex: 1;
-  display: block; /* 改为 block，让子元素绝对定位 */
-  min-height: 300px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   touch-action: none; /* 防止移动端触摸时触发滚动 */
   overflow: visible !important; /* 确保方框不会被裁剪 */
 }
