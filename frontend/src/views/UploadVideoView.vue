@@ -426,6 +426,9 @@
                     @mousemove="draw"
                     @mouseup="stopDrawing"
                     @mouseleave="stopDrawing"
+                    @touchstart="handleTouchStart"
+                    @touchmove="handleTouchMove"
+                    @touchend="handleTouchEnd"
                   ></canvas>
                 </div>
                 <div class="step-actions">
@@ -1403,6 +1406,27 @@ const startDrawing = (event) => {
   currentY.value = startY.value
 }
 
+// 触摸开始（移动端）
+const handleTouchStart = (event) => {
+  if (!boxCanvas.value) return
+  event.preventDefault() // 防止滚动
+  
+  isDrawing.value = true
+  const rect = boxCanvas.value.getBoundingClientRect()
+  const touch = event.touches[0]
+  const displayX = touch.clientX - rect.left
+  const displayY = touch.clientY - rect.top
+  
+  // 将显示尺寸坐标映射到视频实际分辨率坐标
+  const scaleX = boxCanvas.value.width / rect.width
+  const scaleY = boxCanvas.value.height / rect.height
+  
+  startX.value = displayX * scaleX
+  startY.value = displayY * scaleY
+  currentX.value = startX.value
+  currentY.value = startY.value
+}
+
 // 绘制矩形
 const draw = (event) => {
   if (!isDrawing.value || !boxCanvas.value) return
@@ -1421,9 +1445,62 @@ const draw = (event) => {
   redrawBoxSelection()
 }
 
+// 触摸移动（移动端）
+const handleTouchMove = (event) => {
+  if (!isDrawing.value || !boxCanvas.value) return
+  event.preventDefault() // 防止滚动
+  
+  const rect = boxCanvas.value.getBoundingClientRect()
+  const touch = event.touches[0]
+  const displayX = touch.clientX - rect.left
+  const displayY = touch.clientY - rect.top
+  
+  // 将显示尺寸坐标映射到视频实际分辨率坐标
+  const scaleX = boxCanvas.value.width / rect.width
+  const scaleY = boxCanvas.value.height / rect.height
+  
+  currentX.value = displayX * scaleX
+  currentY.value = displayY * scaleY
+  
+  redrawBoxSelection()
+}
+
 // 停止绘制
 const stopDrawing = () => {
   if (!isDrawing.value) return
+  isDrawing.value = false
+  
+  // 计算并保存选区
+  const width = currentX.value - startX.value
+  const height = currentY.value - startY.value
+  
+  // 确保宽高为正数
+  const x = width < 0 ? currentX.value : startX.value
+  const y = height < 0 ? currentY.value : startY.value
+  const absWidth = Math.abs(width)
+  const absHeight = Math.abs(height)
+  
+  // 只有当选区足够大时才保存
+  if (absWidth > 10 && absHeight > 10) {
+    boxSelectionData.value = {
+      x,
+      y,
+      width: absWidth,
+      height: absHeight,
+      timestamp: currentTime.value,
+      canvasWidth: boxCanvas.value?.width || 0,
+      canvasHeight: boxCanvas.value?.height || 0
+    }
+    
+    // 重绘最终选区
+    redrawBoxSelection()
+  }
+}
+
+// 触摸结束（移动端）
+const handleTouchEnd = (event) => {
+  if (!isDrawing.value) return
+  event.preventDefault()
   isDrawing.value = false
   
   // 计算并保存选区
@@ -2960,6 +3037,7 @@ const handleLogout = () => {
   background: transparent;
   pointer-events: auto;
   /* Canvas 内部尺寸由 JS 设置为视频实际分辨率 */
+  touch-action: none; /* 防止移动端触摸时触发滚动 */
 }
 
 .video-controls {
