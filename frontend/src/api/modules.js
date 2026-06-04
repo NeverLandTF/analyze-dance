@@ -174,6 +174,11 @@ export const analysisAPI = {
     return api.post('/analyze', { video_id: videoId, user_id: userId, video_url: videoUrl })
   },
   
+  // 重新分析视频（更新原记录，不生成新记录）
+  reanalyzeVideo(analysisId) {
+    return api.post(`/analysis/${analysisId}/reanalyze`)
+  },
+  
   // 获取视频分析结果（使用新的专用接口）
   getAnalysisResults(videoId) {
     return api.get(`/videos/${videoId}/analyses`).then(res => res.analyses || [])

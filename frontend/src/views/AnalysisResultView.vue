@@ -71,7 +71,7 @@
           <button @click="goBackToHistory" class="btn-back">← 返回分析历史</button>
           <h1>🤖 AI 分析报告</h1>
           <div class="header-actions">
-            <button @click="startAnalysis" class="btn-analyze">🔄 重新分析</button>
+            <button @click="reanalyze" class="btn-analyze">🔄 重新分析</button>
           </div>
         </div>
         
@@ -336,6 +336,31 @@ const startAnalysis = async () => {
   } catch (err) {
     console.error('AI 分析失败:', err)
     showToast('AI 分析失败：' + (err.response?.data?.error || '请稍后重试'), 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 重新分析（更新原记录，不生成新记录）
+const reanalyze = async () => {
+  if (!analysis.value?.id) {
+    showToast('当前没有可重新分析的报告', 'error')
+    return
+  }
+  
+  // 确认提示
+  if (!confirm('确定要重新分析此视频吗？这将更新当前的分析报告，不会生成新记录。')) {
+    return
+  }
+  
+  try {
+    loading.value = true
+    const result = await analysisAPI.reanalyzeVideo(analysis.value.id)
+    showToast('重新分析完成！', 'success')
+    await loadAnalysis()
+  } catch (err) {
+    console.error('重新分析失败:', err)
+    showToast('重新分析失败：' + (err.response?.data?.error || '请稍后重试'), 'error')
   } finally {
     loading.value = false
   }
