@@ -3,8 +3,9 @@
 处理舞者进步记录查询等 API 端点
 """
 from flask import Blueprint, request, jsonify
+from sqlalchemy.orm import joinedload
 
-from models import db, Dancer, ProgressRecord, Video, User
+from models import db, Dancer, ProgressRecord, Video, User, Analysis
 from utils.auth import token_required
 
 progress_bp = Blueprint('progress', __name__, url_prefix='/api')
@@ -60,13 +61,13 @@ def get_progress(user_id):
     # 否则查询该 user_id 的视频
     if current_user.get('is_admin', False) and dancer_id:
         # 管理员选择了特定舞者，使用 dancer_id 过滤
-        videos = Video.query.filter_by(dancer_id=int(dancer_id)).order_by(Video.upload_date.desc()).all()
+        videos = Video.query.options(joinedload(Video.analyses)).filter_by(dancer_id=int(dancer_id)).order_by(Video.upload_date.desc()).all()
     elif current_user.get('is_admin', False) and not dancer_id:
         # 管理员选择"全部舞者"，查询所有视频
-        videos = Video.query.order_by(Video.upload_date.desc()).all()
+        videos = Video.query.options(joinedload(Video.analyses)).order_by(Video.upload_date.desc()).all()
     else:
         # 普通用户查询自己的视频
-        videos = Video.query.filter_by(user_id=user_id).order_by(Video.upload_date.desc()).all()
+        videos = Video.query.options(joinedload(Video.analyses)).filter_by(user_id=user_id).order_by(Video.upload_date.desc()).all()
     
     # 构建精简的视频列表，只包含前端必要字段
     videos_data = []
