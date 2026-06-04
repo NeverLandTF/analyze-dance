@@ -7,7 +7,7 @@ from datetime import datetime
 import os
 import logging
 
-from models import db, Video, Analysis, ProgressRecord
+from models import db, Video, Analysis, ProgressRecord, get_cst_now
 from utils.auth import token_required
 from utils.ai_service import get_ai_service
 
