@@ -406,7 +406,6 @@
                     取消
                   </button>
                 </div>
-              </div>
               
               <!-- 第二步：框选图片 -->
               <div v-if="boxStep === 2" class="box-step-inner">
