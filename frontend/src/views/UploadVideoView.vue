@@ -369,6 +369,8 @@
               <button @click="closeBoxSelection" class="btn-close">×</button>
             </div>
             <div class="box-step-container">
+              <!-- 第一步：选择视频帧 -->
+              <div v-if="boxStep === 1" class="box-step-inner">
                 <div class="box-selection-instructions">
                   <h3>第一步：选择视频帧</h3>
                   <p>1. 拖动进度条选择合适的帧</p>
@@ -406,6 +408,7 @@
                     取消
                   </button>
                 </div>
+              </div>
               
               <!-- 第二步：框选图片 -->
               <div v-if="boxStep === 2" class="box-step-inner">
