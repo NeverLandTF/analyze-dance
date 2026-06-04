@@ -3073,11 +3073,7 @@ const handleLogout = () => {
   background: transparent; /* 移除黑色背景，让视频自然显示 */
   border-radius: 8px;
   /* 修复移动端框选显示问题：移除 overflow: hidden，避免框选框被裁剪 */
-  flex: 1; /* 让容器占据剩余空间 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 0; /* 允许容器收缩 */
+  display: inline-block; /* 让容器大小与视频内容一致 */
   touch-action: none; /* 防止移动端触摸时触发滚动 */
   overflow: visible !important; /* 确保方框不会被裁剪 */
 }
@@ -3105,10 +3101,10 @@ const handleLogout = () => {
 }
 
 .box-selection-video {
-  max-width: 100%;
-  max-height: 100%;
   width: auto;
   height: auto;
+  max-width: 100%;
+  max-height: 100%;
   display: block;
   object-fit: contain; /* 保持宽高比，但容器背景透明，不会有黑边视觉干扰 */
   position: relative;
