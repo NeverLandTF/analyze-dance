@@ -3007,6 +3007,7 @@ const handleLogout = () => {
   justify-content: center;
   min-height: 300px;
   touch-action: none; /* 防止移动端触摸时触发滚动 */
+  overflow: visible; /* 确保方框不会被裁剪 */
 }
 
 .frame-image {
@@ -3039,6 +3040,7 @@ const handleLogout = () => {
   pointer-events: auto;
   /* Canvas 内部尺寸由 JS 设置为视频实际分辨率 */
   touch-action: none; /* 防止移动端触摸时触发滚动 */
+  overflow: visible; /* 确保绘制的方框不会被裁剪 */
 }
 
 .video-controls {
