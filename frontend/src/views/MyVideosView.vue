@@ -1670,4 +1670,24 @@ const handleLogout = () => {
     flex: 1 1 calc(50% - 4px);
   }
 }
+
+/* 滚动条样式 - 与页面深色主题保持一致 */
+.modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: rgba(170, 59, 255, 0.5);
+  border-radius: 4px;
+  transition: background 0.3s;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(170, 59, 255, 0.8);
+}
 </style>

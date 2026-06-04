@@ -1226,4 +1226,24 @@ const getVideoUrl = (filePath) => {
     width: 100%;
   }
 }
+
+/* 滚动条样式 - 与页面深色主题保持一致 */
+.analysis-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.analysis-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.analysis-content::-webkit-scrollbar-thumb {
+  background: rgba(170, 59, 255, 0.5);
+  border-radius: 4px;
+  transition: background 0.3s;
+}
+
+.analysis-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(170, 59, 255, 0.8);
+}
 </style>
